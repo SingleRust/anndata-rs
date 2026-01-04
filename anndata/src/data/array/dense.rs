@@ -175,7 +175,8 @@ impl TryInto<Series> for CategoricalArray {
             return Err(anyhow!("Can only convert 1D CategoricalArray to Series"));
         }
         let series = self.codes.into_iter().map(|x|
-            x.and_then(|idx| self.categories.get(idx as usize).cloned())
+            x.and_then(|idx| 
+                ndarray::ArrayRef::get(&self.categories, idx as usize).cloned())
         ).collect();
         Ok(series)
     }

@@ -1,7 +1,7 @@
 use crate::data::utils::{array_major_minor_index_default, cs_major_minor_index2};
-use crate::data::{DataFrameIndex, DynCsrMatrix};
-use crate::{AnnDataOp, ArrayElemOp, AxisArraysOp, HasShape};
-use anyhow::{ensure, Result};
+use crate::data::{DataFrameIndex, DynCsrMatrix, Data, ArrayData, DynArray};
+use crate::{AnnDataOp, ArrayElemOp, AxisArraysOp, ElemCollectionOp, HasShape};
+use anyhow::{Result, ensure};
 use indexmap::IndexSet;
 use itertools::Itertools;
 use log::warn;
@@ -12,8 +12,6 @@ use polars::frame::DataFrame;
 use polars::prelude::{AnyValue, Categorical32Type, Column, DataType, IntoLazy, NamedFrom};
 use polars::series::{IntoSeries, Series};
 
-use crate::data::{ArrayData, DynArray};
-
 #[derive(Debug, Clone, Copy)]
 pub enum JoinType {
     Inner,
@@ -22,6 +20,10 @@ pub enum JoinType {
 
 /// Concatenate multiple AnnData objects into one.
 /// 
+/// This function concatenates multiple AnnData objects along the observation axis (`obs`),
+/// aligning the variable axis (`var`) according to the specified join type (inner or outer).
+/// It also concatenates associated data structures such as `obsm`, `obsp`, `layers`, and shared `uns` elements.
+///
 /// # Arguments
 /// - `adatas`: A slice of AnnData objects to concatenate.
 /// - `join`: The type of join to perform on the variables (`var`).
@@ -152,6 +154,28 @@ where
         }
     }
 
+    // Add shared uns elements.
+    {
+        let uns: Vec<_> = adatas.iter().map(|x| x.uns()).collect();
+        let common_keys = uns
+            .iter()
+            .map(|x| x.keys().into_iter().collect::<IndexSet<_>>())
+            .reduce(|a, b| a.intersection(&b).cloned().collect())
+            .unwrap();
+        for key in common_keys {
+            if uns
+                .iter()
+                .map(|x| x.get_item::<Data>(&key).unwrap().unwrap())
+                .all_equal()
+            {
+                out.uns().add(
+                    &key,
+                    uns.iter().next().unwrap().get_item::<Data>(&key)?.unwrap(),
+                )?;
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -187,21 +211,18 @@ fn merge_df(this: &mut DataFrame, other: &DataFrame) -> Result<()> {
             };
             let new_column = match dtype {
                 DataType::Categorical(_, _) => {
-                    let mut builder: CategoricalChunkedBuilder<Categorical32Type> = CategoricalChunkedBuilder::new(name.clone(), dtype.clone());
-                    new_column
-                        .iter()
-                        .for_each(|x| {
-                            if let Some(x) = x.get_str() {
-                                builder.append_str(x).unwrap();
-                            } else {
-                                builder.append_null();
-                            }
-                        });
+                    let mut builder: CategoricalChunkedBuilder<Categorical32Type> =
+                        CategoricalChunkedBuilder::new(name.clone(), dtype.clone());
+                    new_column.iter().for_each(|x| {
+                        if let Some(x) = x.get_str() {
+                            builder.append_str(x).unwrap();
+                        } else {
+                            builder.append_null();
+                        }
+                    });
                     builder.finish().into_series()
                 }
-                _ => {
-                    Series::from_any_values_and_dtype(name.clone(), &new_column, dtype, false)?
-                }
+                _ => Series::from_any_values_and_dtype(name.clone(), &new_column, dtype, false)?,
             };
             this.replace_column(i, new_column)?;
         } else {
@@ -222,17 +243,16 @@ fn align_series(
     let dtype = series.dtype();
     let new_series = match dtype {
         DataType::Categorical(_, _) => {
-            let mut builder: CategoricalChunkedBuilder<Categorical32Type> = CategoricalChunkedBuilder::new(name.clone(), dtype.clone());
-            new_row_names
-                .iter()
-                .for_each(|key| {
-                    let item = row_names.get_index(key).map(|i| series.get(i).unwrap());
-                    if let Some(s) = item.as_ref().and_then(|x| x.get_str()) {
-                        builder.append_str(s).unwrap();
-                    } else {
-                        builder.append_null();
-                    }
-                });
+            let mut builder: CategoricalChunkedBuilder<Categorical32Type> =
+                CategoricalChunkedBuilder::new(name.clone(), dtype.clone());
+            new_row_names.iter().for_each(|key| {
+                let item = row_names.get_index(key).map(|i| series.get(i).unwrap());
+                if let Some(s) = item.as_ref().and_then(|x| x.get_str()) {
+                    builder.append_str(s).unwrap();
+                } else {
+                    builder.append_null();
+                }
+            });
             builder.finish().into_series()
         }
         _ => {
@@ -300,7 +320,10 @@ fn index_array(
     }
 }
 
-fn concat_x<A: AnnDataOp>(adatas: &[A], common_vars: &IndexSet<String>) -> impl Iterator<Item = ArrayData> {
+fn concat_x<A: AnnDataOp>(
+    adatas: &[A],
+    common_vars: &IndexSet<String>,
+) -> impl Iterator<Item = ArrayData> {
     adatas.iter().map(move |adata| {
         let var_names = adata.var_names();
         let arr = adata.x().get().unwrap().unwrap();
@@ -318,7 +341,10 @@ fn concat_x<A: AnnDataOp>(adatas: &[A], common_vars: &IndexSet<String>) -> impl 
     })
 }
 
-fn concat_axis_arrays<A: AxisArraysOp>(axis_arrays: &[A], key: &str) -> impl Iterator<Item = ArrayData> {
+fn concat_axis_arrays<A: AxisArraysOp>(
+    axis_arrays: &[A],
+    key: &str,
+) -> impl Iterator<Item = ArrayData> {
     let size = axis_arrays[0].get(key).unwrap().shape().unwrap()[1];
     axis_arrays.iter().map(move |arr| {
         let arr: ArrayData = arr.get_item(key).unwrap().unwrap();

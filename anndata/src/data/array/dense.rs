@@ -16,6 +16,7 @@ use ndarray::{Array, Array1, ArrayD, ArrayView, Axis, Dimension, RemoveAxis, Sli
 use polars::series::Series;
 use std::collections::HashMap;
 use std::ops::Index;
+use crate::backend::get_default_write_config;
 
 impl<'a, T: BackendData, D> Element for ArrayView<'a, T, D> {
     fn metadata(&self) -> MetaData {
@@ -37,7 +38,7 @@ impl<'a, T: BackendData, D: Dimension> Writable for ArrayView<'a, T, D> {
         location: &G,
         name: &str,
     ) -> Result<DataContainer<B>> {
-        let dataset = location.new_array_dataset(name, self.into(), Default::default())?;
+        let dataset = location.new_array_dataset(name, self.into(), get_default_write_config())?;
         let mut container = DataContainer::<B>::Dataset(dataset);
         self.metadata().save(&mut container)?;
         Ok(container)

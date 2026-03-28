@@ -549,3 +549,28 @@ fn get_block_size(n: usize, total: usize) -> usize {
     (total as f64).powf(1.0 / n as f64).ceil() as usize
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::ArrayData;
+
+    #[test]
+    fn test_from_csr_data_valid_sprs() {
+        let indptr = vec![0, 2, 3, 4];
+        let indices = vec![0, 1, 2, 0];
+        let data = vec![1.0, 2.0, 3.0, 4.0];
+        let result = from_csr_data(3, 3, indptr, indices, data).unwrap();
+        assert!(matches!(result, ArrayData::CsrMatrix(_)));
+    }
+
+    #[test]
+    fn test_from_csr_data_duplicate_entries() {
+        let indptr = vec![0, 3, 4, 5];
+        // duplicates in row 0 at column 1
+        let indices = vec![0, 1, 1, 2, 0];
+        let data = vec![1.0, 2.0, 2.5, 3.0, 4.0];
+        let result = from_csr_data(3, 3, indptr, indices, data).unwrap();
+        assert!(matches!(result, ArrayData::CsrNonCanonical(_)));
+    }
+}
+

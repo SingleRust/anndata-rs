@@ -888,4 +888,36 @@ mod csr_noncanonical_index_tests {
             ),
         );
     }
+
+    #[test]
+    fn test_csr_noncanonical_from_trimati() {
+        let trimat = TriMatI::from_triplets(
+            (3, 3),
+            vec![0, 0, 1, 1, 2],
+            vec![1, 1, 2, 2, 0], // duplicates at (0,1) and (1,2)
+            vec![1.0, 2.0, 3.0, 4.0, 5.0],
+        );
+        let csr = CsrNonCanonical::from(&trimat);
+        assert_eq!(csr.nrows(), 3);
+        assert_eq!(csr.ncols(), 3);
+        assert_eq!(csr.row_offsets(), &[0, 2, 4, 5]);
+        assert_eq!(csr.col_indices(), &[1, 1, 2, 2, 0]);
+        assert_eq!(csr.values(), &[1.0, 2.0, 3.0, 4.0, 5.0]);
+    }
+
+    #[test]
+    fn test_csr_noncanonical_canonicalize_sprs() {
+        let csr: CsrNonCanonical<f64> = CsrNonCanonical::from_csr_data(
+            3, 3, 
+            vec![0, 2, 3, 4], 
+            vec![0, 1, 2, 0], 
+            vec![1.0, 2.0, 3.0, 4.0]
+        );
+        let canonicalized = csr.canonicalize().expect("Should be canonicalizable since it has no duplicates");
+        assert_eq!(canonicalized.rows(), 3);
+        assert_eq!(canonicalized.cols(), 3);
+        assert_eq!(canonicalized.indptr().as_slice().unwrap(), &[0, 2, 3, 4]);
+        assert_eq!(canonicalized.indices(), &[0, 1, 2, 0]);
+        assert_eq!(canonicalized.data(), &[1.0, 2.0, 3.0, 4.0]);
+    }
 }

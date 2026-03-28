@@ -582,3 +582,50 @@ impl WritableArray for &ArrayData {}
 //         _ => bail!("cannot read csr matrix from non-group container"),
 //     }
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sprs::CsMatI;
+
+    #[test]
+    fn test_dyn_ind_sparse_matrix_csr_csc_conversions() {
+        let csr: CsMatI<f64, u32, u64> = CsMatI::new_csc((3, 3), vec![0, 1, 2, 3], vec![0, 1, 2], vec![1.0, 2.0, 3.0]);
+        let data: ArrayData = csr.into();
+        assert!(matches!(data, ArrayData::CscMatrix(_)));
+
+        let csr2: CsMatI<f64, u32, u64> = CsMatI::new((3, 3), vec![0, 1, 2, 3], vec![0, 1, 2], vec![1.0, 2.0, 3.0]);
+        let data2: ArrayData = csr2.into();
+        assert!(matches!(data2, ArrayData::CsrMatrix(_)));
+    }
+
+    #[test]
+    fn test_dyn_ind_sparse_matrix_try_from_arraydata() {
+        let csr: CsMatI<f64, u32, u64> = CsMatI::new((3, 3), vec![0, 1, 2, 3], vec![0, 1, 2], vec![1.0, 2.0, 3.0]);
+        let data: ArrayData = csr.clone().into();
+        let extracted: CsMatI<f64, u32, u64> = CsMatI::try_from(data).unwrap();
+        assert_eq!(csr.indptr(), extracted.indptr());
+        assert_eq!(csr.indices(), extracted.indices());
+        assert_eq!(csr.data(), extracted.data());
+    }
+
+    #[test]
+    fn test_arraydata_stackable_vstack_sprs() {
+        let csr1: CsMatI<f64, u32, u64> = CsMatI::new((2, 3), vec![0, 1, 2], vec![0, 1], vec![1.0, 2.0]);
+        let csr2: CsMatI<f64, u32, u64> = CsMatI::new((1, 3), vec![0, 1], vec![2], vec![3.0]);
+        let d1: ArrayData = csr1.into();
+        let d2: ArrayData = csr2.into();
+        
+        let stacked = ArrayData::vstack(vec![d1, d2].into_iter()).unwrap();
+        
+        if let ArrayData::CsrMatrix(DynIndSparseMatrix::U32(DynSparseMatrix::F64(m))) = stacked {
+            assert_eq!(m.rows(), 3);
+            assert_eq!(m.cols(), 3);
+            assert_eq!(m.indptr().as_slice().unwrap(), &[0, 1, 2, 3]);
+            assert_eq!(m.indices(), &[0, 1, 2]);
+            assert_eq!(m.data(), &[1.0, 2.0, 3.0]);
+        } else {
+            panic!("Expected CsrMatrix of correct type");
+        }
+    }
+}

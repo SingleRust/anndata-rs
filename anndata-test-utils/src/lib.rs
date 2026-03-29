@@ -392,3 +392,72 @@ pub fn test_obsm_drain<B: Backend>() {
         assert!(adata.obsm().keys().is_empty());
     });
 }
+
+pub fn test_backend_interop<B1: Backend, B2: Backend>() {
+    with_tmp_dir(|dir| {
+        let file1 = dir.join("test.h5ad");
+        let file2 = dir.join("test.zarr");
+
+        // 1. Create a complex dataset in Backend 1
+        let adata1 = AnnData::<B1>::new(&file1).unwrap();
+        let x: ArrayData = rand_csr::<f64>(50, 100, 20, 0.0, 1.0).into();
+        adata1.set_x(&x).unwrap();
+
+        let mut config_map = std::collections::HashMap::new();
+        config_map.insert("version".to_string(), Data::Scalar(anndata::data::DynScalar::I32(1)));
+        config_map.insert("author".to_string(), Data::Scalar(anndata::data::DynScalar::String("ian".to_string())));
+        adata1.set_uns([("config".to_string(), Data::Mapping(config_map.into()))]).unwrap();
+        
+        let obsm_data: ArrayData = Array::random((50, 5), Uniform::new(0, 100).unwrap()).into();
+        adata1.obsm().add("pca", &obsm_data).unwrap();
+
+        // 2. Write it to Backend 2
+        adata1.write::<B2, _>(&file2, None, None).unwrap();
+        adata1.close().unwrap();
+
+        // 3. Open Backend 2 and verify
+        let adata2 = AnnData::<B2>::open(B2::open(&file2).unwrap()).unwrap();
+        
+        let x2 = adata2.x().get::<ArrayData>().unwrap().unwrap();
+        assert_eq!(x, x2);
+        
+        let obsm2 = adata2.obsm().get_item::<ArrayData>("pca").unwrap().unwrap();
+        assert_eq!(obsm_data, obsm2);
+        
+        assert_eq!(adata2.n_obs(), 50);
+        assert_eq!(adata2.n_vars(), 100);
+    });
+}
+
+pub fn test_uns_nesting<B: Backend>() {
+    with_tmp_dir(|dir| {
+        let file = dir.join("test_uns");
+        let adata = AnnData::<B>::new(&file).unwrap();
+        
+        // Create deeply nested data
+        let mut inner_map = std::collections::HashMap::new();
+        inner_map.insert("val".to_string(), Data::Scalar(anndata::data::DynScalar::I32(42)));
+        
+        let mut middle_map = std::collections::HashMap::new();
+        middle_map.insert("inner".to_string(), Data::Mapping(inner_map.into()));
+        
+        // Save to uns
+        adata.uns().add("config", Data::Mapping(middle_map.into())).unwrap();
+        
+        // Close and reopen to test serialization
+        adata.close().unwrap();
+        let adata_read = AnnData::<B>::open(B::open(&file).unwrap()).unwrap();
+        
+        let read_back = adata_read.uns().get_item::<Data>("config").unwrap().unwrap();
+        
+        if let Data::Mapping(middle) = read_back {
+            if let Data::Mapping(inner) = middle.get("inner").unwrap() {
+                if let Data::Scalar(anndata::data::DynScalar::I32(val)) = inner.get("val").unwrap() {
+                    assert_eq!(*val, 42);
+                    return;
+                }
+            }
+        }
+        panic!("Nested uns extraction failed to match structure");
+    });
+}

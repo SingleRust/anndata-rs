@@ -138,3 +138,15 @@ fn test_obsm_drain() {
     utils::test_obsm_drain::<H5>();
     utils::test_obsm_drain::<Zarr>();
 }
+
+#[test]
+fn test_backend_interop() {
+    utils::test_backend_interop::<H5, Zarr>();
+    utils::test_backend_interop::<Zarr, H5>();
+}
+
+#[test]
+fn test_uns_nesting() {
+    utils::test_uns_nesting::<H5>();
+    utils::test_uns_nesting::<Zarr>();
+}

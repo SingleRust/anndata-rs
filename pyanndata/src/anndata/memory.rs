@@ -1,17 +1,20 @@
-use crate::data::{isinstance_of_pyanndata, isinstance_of_polars, isinstance_of_arr, isinstance_of_csr, isinstance_of_csc, PyArrayData, PyData};
+use crate::data::{
+    PyArrayData, PyData, isinstance_of_arr, isinstance_of_csc, isinstance_of_csr,
+    isinstance_of_polars, isinstance_of_pyanndata,
+};
 
-use std::collections::HashSet;
-use std::ops::Deref;
+use anndata::backend::{DataType, ScalarType};
+use anndata::data::{ArrayChunk, DataFrameIndex, SelectInfoElem, Shape, Stackable};
+use anndata::{self, ArrayElemOp, ElemCollectionOp, Selectable};
+use anndata::{AnnDataOp, ArrayData, AxisArraysOp, Backend, Data, HasShape};
+use anyhow::{Result, bail};
 use polars::prelude::DataFrame;
-use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
+use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3_polars::PyDataFrame;
-use anndata::{self, Selectable, ElemCollectionOp, ArrayElemOp};
-use anndata::{AnnDataOp, AxisArraysOp, ArrayData, Data, Backend, HasShape};
-use anndata::data::{ArrayChunk, DataFrameIndex, SelectInfoElem, Shape, Stackable};
-use anndata::backend::{DataType, ScalarType};
-use anyhow::{Result, bail};
+use std::collections::HashSet;
+use std::ops::Deref;
 
 pub struct PyAnnData<'py>(Bound<'py, PyAny>);
 
@@ -52,7 +55,11 @@ impl<'py> PyAnnData<'py> {
             .extract()
     }
 
-    pub fn from_anndata<B: Backend>(py: Python<'py>, inner: &anndata::AnnData<B>, partial: Option<HashSet<String>>) -> Result<Self> {
+    pub fn from_anndata<B: Backend>(
+        py: Python<'py>,
+        inner: &anndata::AnnData<B>,
+        partial: Option<HashSet<String>>,
+    ) -> Result<Self> {
         let partial = partial.unwrap_or_default();
         let adata = PyAnnData::new(py)?;
         adata.set_n_obs(inner.n_obs())?;
@@ -75,45 +82,51 @@ impl<'py> PyAnnData<'py> {
         }
 
         if partial.is_empty() || partial.contains("uns") {
-            inner
-                .uns().keys()
-                .into_iter()
-                .try_for_each(|k| adata.uns().add(&k, inner.uns().get_item::<Data>(&k)?.unwrap()))?;
+            inner.uns().keys().into_iter().try_for_each(|k| {
+                adata
+                    .uns()
+                    .add(&k, inner.uns().get_item::<Data>(&k)?.unwrap())
+            })?;
         }
 
         if partial.is_empty() || partial.contains("obsm") {
-            inner
-                .obsm().keys()
-                .into_iter()
-                .try_for_each(|k| adata.obsm().add(&k, inner.obsm().get_item::<ArrayData>(&k)?.unwrap()))?;
+            inner.obsm().keys().into_iter().try_for_each(|k| {
+                adata
+                    .obsm()
+                    .add(&k, inner.obsm().get_item::<ArrayData>(&k)?.unwrap())
+            })?;
         }
 
         if partial.is_empty() || partial.contains("obsp") {
-            inner
-                .obsp().keys()
-                .into_iter()
-                .try_for_each(|k| adata.obsp().add(&k, inner.obsp().get_item::<ArrayData>(&k)?.unwrap()))?;
+            inner.obsp().keys().into_iter().try_for_each(|k| {
+                adata
+                    .obsp()
+                    .add(&k, inner.obsp().get_item::<ArrayData>(&k)?.unwrap())
+            })?;
         }
 
         if partial.is_empty() || partial.contains("varm") {
-            inner
-                .varm().keys()
-                .into_iter()
-                .try_for_each(|k| adata.varm().add(&k, inner.varm().get_item::<ArrayData>(&k)?.unwrap()))?;
+            inner.varm().keys().into_iter().try_for_each(|k| {
+                adata
+                    .varm()
+                    .add(&k, inner.varm().get_item::<ArrayData>(&k)?.unwrap())
+            })?;
         }
 
         if partial.is_empty() || partial.contains("varp") {
-            inner
-                .varp().keys()
-                .into_iter()
-                .try_for_each(|k| adata.varp().add(&k, inner.varp().get_item::<ArrayData>(&k)?.unwrap()))?;
+            inner.varp().keys().into_iter().try_for_each(|k| {
+                adata
+                    .varp()
+                    .add(&k, inner.varp().get_item::<ArrayData>(&k)?.unwrap())
+            })?;
         }
 
         if partial.is_empty() || partial.contains("layers") {
-            inner
-                .layers().keys()
-                .into_iter()
-                .try_for_each(|k| adata.layers().add(&k, inner.layers().get_item::<ArrayData>(&k)?.unwrap()))?;
+            inner.layers().keys().into_iter().try_for_each(|k| {
+                adata
+                    .layers()
+                    .add(&k, inner.layers().get_item::<ArrayData>(&k)?.unwrap())
+            })?;
         }
 
         Ok(adata)
@@ -139,8 +152,14 @@ impl<'py> PyAnnData<'py> {
 
 impl<'py> AnnDataOp for PyAnnData<'py> {
     type X = ArrayElem<'py>;
-    type ElemCollectionRef<'a> = ElemCollection<'a> where Self: 'a;
-    type AxisArraysRef<'a> = AxisArrays<'a> where Self: 'a;
+    type ElemCollectionRef<'a>
+        = ElemCollection<'a>
+    where
+        Self: 'a;
+    type AxisArraysRef<'a>
+        = AxisArrays<'a>
+    where
+        Self: 'a;
 
     fn x(&self) -> Self::X {
         ArrayElem(self.0.getattr("X").unwrap())
@@ -224,14 +243,30 @@ impl<'py> AnnDataOp for PyAnnData<'py> {
     }
 
     fn obs_names(&self) -> DataFrameIndex {
-        self.0.getattr("obs_names").unwrap().extract::<Vec<String>>().unwrap().into()
+        self.0
+            .getattr("obs_names")
+            .unwrap()
+            .extract::<Vec<String>>()
+            .unwrap()
+            .into()
     }
     fn var_names(&self) -> DataFrameIndex {
-        self.0.getattr("var_names").unwrap().extract::<Vec<String>>().unwrap().into()
+        self.0
+            .getattr("var_names")
+            .unwrap()
+            .extract::<Vec<String>>()
+            .unwrap()
+            .into()
     }
 
     fn set_obs_names(&self, index: DataFrameIndex) -> Result<()> {
-        if self.getattr("obs")?.getattr("empty")?.cast().unwrap().is_true() {
+        if self
+            .getattr("obs")?
+            .getattr("empty")?
+            .cast()
+            .unwrap()
+            .is_true()
+        {
             let py = self.py();
             let df = py.import("pandas")?.call_method(
                 "DataFrame",
@@ -245,7 +280,13 @@ impl<'py> AnnDataOp for PyAnnData<'py> {
         Ok(())
     }
     fn set_var_names(&self, index: DataFrameIndex) -> Result<()> {
-        if self.getattr("var")?.getattr("empty")?.cast().unwrap().is_true() {
+        if self
+            .getattr("var")?
+            .getattr("empty")?
+            .cast()
+            .unwrap()
+            .is_true()
+        {
             let py = self.py();
             let df = py.import("pandas")?.call_method(
                 "DataFrame",
@@ -259,18 +300,24 @@ impl<'py> AnnDataOp for PyAnnData<'py> {
         Ok(())
     }
 
-    fn obs_ix<'a, I: IntoIterator<Item = &'a str>>(&self, _names: I) -> Result<Vec<usize>> {todo!()}
-    fn var_ix<'a, I: IntoIterator<Item = &'a str>>(&self, _names: I) -> Result<Vec<usize>> {todo!()}
+    fn obs_ix<'a, I: IntoIterator<Item = &'a str>>(&self, _names: I) -> Result<Vec<usize>> {
+        todo!()
+    }
+    fn var_ix<'a, I: IntoIterator<Item = &'a str>>(&self, _names: I) -> Result<Vec<usize>> {
+        todo!()
+    }
 
     fn read_obs(&self) -> Result<DataFrame> {
-        let df: PyDataFrame = self.py()
+        let df: PyDataFrame = self
+            .py()
             .import("polars")?
             .call_method1("from_pandas", (self.0.getattr("obs")?,))?
             .extract()?;
         Ok(df.into())
     }
     fn read_var(&self) -> Result<DataFrame> {
-        let df: PyDataFrame = self.py()
+        let df: PyDataFrame = self
+            .py()
             .import("polars")?
             .call_method1("from_pandas", (self.0.getattr("var")?,))?
             .extract()?;
@@ -281,7 +328,8 @@ impl<'py> AnnDataOp for PyAnnData<'py> {
         let py = self.py();
         let is_empty = obs.height() == 0 || obs.width() == 0;
         let index = self.getattr("obs")?.getattr("index")?;
-        let mut df = PyDataFrame(obs).into_pyobject(py)?
+        let mut df = PyDataFrame(obs)
+            .into_pyobject(py)?
             .call_method0("to_pandas")?;
 
         if is_empty {
@@ -298,7 +346,8 @@ impl<'py> AnnDataOp for PyAnnData<'py> {
         let py = self.py();
         let is_empty = var.height() == 0 || var.width() == 0;
         let index = self.getattr("var")?.getattr("index")?;
-        let mut df = PyDataFrame(var).into_pyobject(py)?
+        let mut df = PyDataFrame(var)
+            .into_pyobject(py)?
             .call_method0("to_pandas")?;
 
         if is_empty {
@@ -453,26 +502,31 @@ pub struct ElemCollection<'a>(Bound<'a, PyAny>);
 
 impl ElemCollectionOp for ElemCollection<'_> {
     fn keys(&self) -> Vec<String> {
-        self.0.call_method0("keys").unwrap().try_iter().unwrap().map(|x| x.unwrap().extract().unwrap()).collect()
+        self.0
+            .call_method0("keys")
+            .unwrap()
+            .try_iter()
+            .unwrap()
+            .map(|x| x.unwrap().extract().unwrap())
+            .collect()
     }
 
     fn get_item<D>(&self, key: &str) -> Result<Option<D>>
-        where
-            D: TryFrom<Data>,
-            <D as TryFrom<Data>>::Error: Into<anyhow::Error>
+    where
+        D: TryFrom<Data>,
+        <D as TryFrom<Data>>::Error: Into<anyhow::Error>,
     {
-        self.0.call_method1("__getitem__", (key,)).ok().map(|x| {
-            let data: Data = x.extract::<PyData>()?.into();
-            data.try_into().map_err(Into::into)
-        }).transpose()
+        self.0
+            .call_method1("__getitem__", (key,))
+            .ok()
+            .map(|x| {
+                let data: Data = x.extract::<PyData>()?.into();
+                data.try_into().map_err(Into::into)
+            })
+            .transpose()
     }
 
-    fn add<D: Into<Data>>(
-            &self,
-            key: &str,
-            data: D,
-        ) -> Result<()>
-    {
+    fn add<D: Into<Data>>(&self, key: &str, data: D) -> Result<()> {
         let py = self.0.py();
         let d = PyData::from(data.into()).into_pyobject(py)?.into_any();
         let new_d = if isinstance_of_polars(&d)? {
@@ -500,19 +554,23 @@ impl<'py> AxisArraysOp for AxisArrays<'py> {
     type ArrayElem = ArrayElem<'py>;
 
     fn keys(&self) -> Vec<String> {
-        self.arrays.call_method0("keys").unwrap().try_iter().unwrap().map(|x| x.unwrap().extract().unwrap()).collect()
+        self.arrays
+            .call_method0("keys")
+            .unwrap()
+            .try_iter()
+            .unwrap()
+            .map(|x| x.unwrap().extract().unwrap())
+            .collect()
     }
 
     fn get(&self, key: &str) -> Option<Self::ArrayElem> {
-        self.arrays.call_method1("__getitem__", (key,)).ok().map(ArrayElem)
+        self.arrays
+            .call_method1("__getitem__", (key,))
+            .ok()
+            .map(ArrayElem)
     }
 
-    fn add<D: Into<ArrayData>>(
-            &self,
-            key: &str,
-            data: D,
-        ) -> Result<()>
-    {
+    fn add<D: Into<ArrayData>>(&self, key: &str, data: D) -> Result<()> {
         let data = data.into();
         let py = self.arrays.py();
         let shape = data.shape();
@@ -535,9 +593,9 @@ impl<'py> AxisArraysOp for AxisArrays<'py> {
     }
 
     fn add_iter<I, D>(&self, key: &str, data: I) -> Result<()>
-        where
-            I: Iterator<Item = D>,
-            D: ArrayChunk + Into<ArrayData>,
+    where
+        I: Iterator<Item = D>,
+        D: ArrayChunk + Into<ArrayData>,
     {
         let array = Stackable::vstack(data.map(|x| x.into()))?;
         let shape = array.shape();
@@ -558,13 +616,13 @@ impl<'py> AxisArraysOp for AxisArrays<'py> {
         self.arrays.call_method1("__delitem__", (key,))?;
         Ok(())
     }
-
 }
 
 pub struct ArrayElem<'a>(Bound<'a, PyAny>);
 
 impl ArrayElemOp for ArrayElem<'_> {
-    type ArrayIter<D> = PyArrayIterator<D>
+    type ArrayIter<D>
+        = PyArrayIterator<D>
     where
         D: TryFrom<ArrayData>,
         <D as TryFrom<ArrayData>>::Error: std::fmt::Debug;
@@ -634,7 +692,7 @@ impl ArrayElemOp for ArrayElem<'_> {
     {
         let res = self.get()?;
         if res.is_some() {
-            // Since this is a reference to an element in an AnnData object, 
+            // Since this is a reference to an element in an AnnData object,
             // we should probably clear it from the AnnData object if we want "take" semantics.
             // However, ArrayElem doesn't have a direct reference back to the container attribute name.
             // For now, we'll just return the data, which is already owned by the Rust side after get().
@@ -646,19 +704,19 @@ impl ArrayElemOp for ArrayElem<'_> {
     where
         D: TryFrom<ArrayData>,
         S: AsRef<[SelectInfoElem]>,
-        <D as TryFrom<ArrayData>>::Error: Into<anyhow::Error>
+        <D as TryFrom<ArrayData>>::Error: Into<anyhow::Error>,
     {
         if let Some(data) = self.get::<ArrayData>()? {
-            data.select(slice.as_ref()).try_into().map_err(Into::into).map(Some)
+            data.select(slice.as_ref())
+                .try_into()
+                .map_err(Into::into)
+                .map(Some)
         } else {
             Ok(None)
         }
     }
 
-    fn iter<D>(
-        &self,
-        chunk_size: usize,
-    ) -> Self::ArrayIter<D>
+    fn iter<D>(&self, chunk_size: usize) -> Self::ArrayIter<D>
     where
         D: TryFrom<ArrayData>,
         <D as TryFrom<ArrayData>>::Error: std::fmt::Debug,

@@ -1,8 +1,8 @@
+use anndata::{AnnData, Backend};
+use anndata_hdf5::H5;
 use anndata_test_utils as utils;
 use anndata_test_utils::with_tmp_dir;
-use anndata_hdf5::H5;
 use anndata_zarr::Zarr;
-use anndata::{AnnData, Backend};
 
 #[test]
 fn test_basic() {
@@ -18,7 +18,7 @@ fn test_complex_dataframe() {
         let adata = AnnData::<H5>::open(H5::open(&input).unwrap()).unwrap();
         adata.write::<H5, _>(file, None, None).unwrap();
     });
-    
+
     with_tmp_dir(|dir| {
         let file = dir.join("test.zarr");
         let adata = AnnData::<H5>::open(H5::open(&input).unwrap()).unwrap();
@@ -81,7 +81,7 @@ fn test_noncanonical() {
         let file = dir.join("test.h5");
         let adata_gen = || AnnData::<H5>::new(&file).unwrap();
         utils::test_noncanonical(|| adata_gen());
-        
+
         let file = dir.join("test.zarr");
         let adata_gen = || AnnData::<Zarr>::new(&file).unwrap();
         utils::test_noncanonical(|| adata_gen());
@@ -120,7 +120,7 @@ fn test_iterator() {
         let file = dir.join("test.h5");
         let adata_gen = || AnnData::<H5>::new(&file).unwrap();
         utils::test_iterator(|| adata_gen());
-        
+
         let file = dir.join("test.zarr");
         let adata_gen = || AnnData::<Zarr>::new(&file).unwrap();
         utils::test_iterator(|| adata_gen());

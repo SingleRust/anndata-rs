@@ -4,11 +4,11 @@ pub use datatype::{BackendData, DataType, ScalarType};
 
 use anyhow::{Result, bail};
 use core::fmt::{Debug, Formatter};
-use ndarray::{arr0, Array, CowArray, Dimension, Ix0, IxDyn};
-use std::path::{Path, PathBuf};
-use std::cell::RefCell;
-pub use serde_json::Value;
+use ndarray::{Array, CowArray, Dimension, Ix0, IxDyn, arr0};
 use serde::Deserialize;
+pub use serde_json::Value;
+use std::cell::RefCell;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Compression {
@@ -376,13 +376,4 @@ impl<B: Backend> DataContainer<B> {
             _ => bail!("Expecting Dataset"),
         }
     }
-}
-
-pub fn iter_containers<B: Backend>(
-    group: &B::Group,
-) -> impl Iterator<Item = (String, DataContainer<B>)> + '_ {
-    group.list().unwrap().into_iter().map(|x| {
-        let container = DataContainer::open(group, &x).unwrap();
-        (x, container)
-    })
 }

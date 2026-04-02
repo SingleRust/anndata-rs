@@ -1,4 +1,4 @@
-use pyo3::{prelude::*, types::PyType, PyResult};
+use pyo3::{PyResult, prelude::*, types::PyType};
 
 pub fn isinstance_of_csr<'py>(obj: &Bound<'py, PyAny>) -> PyResult<bool> {
     obj.is_instance(

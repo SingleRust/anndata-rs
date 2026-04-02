@@ -4,20 +4,25 @@ pub use common::*;
 use anndata::concat::{concat, JoinType};
 use anndata::data::SelectInfoElem;
 use anndata::{data::CsrNonCanonical, *};
-use std::collections::HashMap;
 use data::ArrayConvert;
-use sprs::{CsMatI, TriMatI};
 use ndarray::{Array, Array2};
-use ndarray_rand::RandomExt;
 use ndarray_rand::rand_distr::Uniform;
+use ndarray_rand::RandomExt;
 use proptest::prelude::*;
+use sprs::{CsMatI, TriMatI};
+use std::collections::HashMap;
 
 pub fn test_basic<B: Backend>() {
     with_tmp_dir(|dir| {
         let ann1 = AnnData::<B>::new(dir.join("test1")).unwrap();
         let csc = rand_csc::<i32>(10, 5, 3, 1, 100);
         ann1.obsm().add("csc", &csc).unwrap();
-        assert!(ann1.obsm().get_item::<CsMatI<i32, i64, u64>>("csc").unwrap().unwrap().is_csc());
+        assert!(ann1
+            .obsm()
+            .get_item::<CsMatI<i32, i64, u64>>("csc")
+            .unwrap()
+            .unwrap()
+            .is_csc());
 
         let ann2 = AnnData::<B>::new(dir.join("test2")).unwrap();
         AnnDataSet::<B>::new(
@@ -94,22 +99,22 @@ where
     let coo: TriMatI<i32, usize> = TriMatI::from_triplets(
         (5, 4),
         vec![0, 0, 1, 1, 1, 2, 3, 4], // Duplicate (0,0) and (1,0)
-        vec![0, 0, 0, 0, 2, 3, 1, 3], 
+        vec![0, 0, 0, 0, 2, 3, 1, 3],
         vec![1, 10, 2, 20, 4, 5, 6, 7],
     );
     adata.set_x(&CsrNonCanonical::from(&coo)).unwrap();
-    
+
     // Attempting to get as CsMatI should fail because it's non-canonical on disk (duplicates)
     assert!(adata.x().get::<CsMatI<i32, i64, u64>>().is_err());
-    
+
     // Getting as ArrayData should succeed and return CsrNonCanonical variant
     let data = adata.x().get::<ArrayData>().unwrap().unwrap();
     assert!(matches!(data, ArrayData::CsrNonCanonical(_)));
-    
+
     // Convert to CsrNonCanonical specifically
     let non_canonical: CsrNonCanonical<i32> = data.try_into().unwrap();
     assert_eq!(non_canonical.nrows(), 5);
-    
+
     // Currently canonicalize() only works if there are no duplicates.
     // So it should return Err(self) here.
     assert!(non_canonical.canonicalize().is_err());
@@ -127,20 +132,71 @@ pub fn test_mixed_layers<B: Backend>() {
         adata.layers().add("dense_layer", &dense).unwrap();
 
         // Verify layouts are preserved
-        assert!(adata.x().get::<CsMatI<f64, i64, u64>>().unwrap().unwrap().is_csr());
-        assert!(adata.layers().get_item::<CsMatI<i32, i64, u64>>("csc_layer").unwrap().unwrap().is_csc());
-        assert_eq!(adata.layers().get_item::<Array2<f32>>("dense_layer").unwrap().unwrap(), dense);
+        assert!(adata
+            .x()
+            .get::<CsMatI<f64, i64, u64>>()
+            .unwrap()
+            .unwrap()
+            .is_csr());
+        assert!(adata
+            .layers()
+            .get_item::<CsMatI<i32, i64, u64>>("csc_layer")
+            .unwrap()
+            .unwrap()
+            .is_csc());
+        assert_eq!(
+            adata
+                .layers()
+                .get_item::<Array2<f32>>("dense_layer")
+                .unwrap()
+                .unwrap(),
+            dense
+        );
 
         // Test subsetting across all mixed layers
         let select = [SelectInfoElem::from(0..10), SelectInfoElem::full()];
         adata.subset(&select).unwrap();
 
         assert_eq!(adata.n_obs(), 10);
-        assert!(adata.x().get::<CsMatI<f64, i64, u64>>().unwrap().unwrap().is_csr());
-        assert_eq!(adata.x().get::<CsMatI<f64, i64, u64>>().unwrap().unwrap().rows(), 10);
-        assert!(adata.layers().get_item::<CsMatI<i32, i64, u64>>("csc_layer").unwrap().unwrap().is_csc());
-        assert_eq!(adata.layers().get_item::<CsMatI<i32, i64, u64>>("csc_layer").unwrap().unwrap().rows(), 10);
-        assert_eq!(adata.layers().get_item::<Array2<f32>>("dense_layer").unwrap().unwrap().shape(), &[10, 20]);
+        assert!(adata
+            .x()
+            .get::<CsMatI<f64, i64, u64>>()
+            .unwrap()
+            .unwrap()
+            .is_csr());
+        assert_eq!(
+            adata
+                .x()
+                .get::<CsMatI<f64, i64, u64>>()
+                .unwrap()
+                .unwrap()
+                .rows(),
+            10
+        );
+        assert!(adata
+            .layers()
+            .get_item::<CsMatI<i32, i64, u64>>("csc_layer")
+            .unwrap()
+            .unwrap()
+            .is_csc());
+        assert_eq!(
+            adata
+                .layers()
+                .get_item::<CsMatI<i32, i64, u64>>("csc_layer")
+                .unwrap()
+                .unwrap()
+                .rows(),
+            10
+        );
+        assert_eq!(
+            adata
+                .layers()
+                .get_item::<Array2<f32>>("dense_layer")
+                .unwrap()
+                .unwrap()
+                .shape(),
+            &[10, 20]
+        );
     });
 }
 
@@ -164,7 +220,11 @@ pub fn test_pairwise<B: Backend>() {
 
         assert_eq!(adata.n_obs(), 10);
         // Pairwise matrix should now be 10x10 (subsetted on both axes)
-        let sliced_obsp = adata.obsp().get_item::<CsMatI<f64, i64, u64>>("distances").unwrap().unwrap();
+        let sliced_obsp = adata
+            .obsp()
+            .get_item::<CsMatI<f64, i64, u64>>("distances")
+            .unwrap()
+            .unwrap();
         assert_eq!(sliced_obsp.rows(), 10);
         assert_eq!(sliced_obsp.cols(), 10);
     });
@@ -173,7 +233,7 @@ pub fn test_pairwise<B: Backend>() {
 pub fn test_sparse_edge_cases<B: Backend>() {
     with_tmp_dir(|dir| {
         let adata = AnnData::<B>::new(dir.join("edge_cases")).unwrap();
-        
+
         // Case 1: Empty matrix (0x0)
         let empty = rand_csr::<f64>(0, 0, 0, 0.0, 1.0);
         adata.set_x(&empty).unwrap();
@@ -185,17 +245,29 @@ pub fn test_sparse_edge_cases<B: Backend>() {
         let indptr = vec![0, 1, 1, 2]; // row 1 is empty
         let indices = vec![0, 1];
         let data = vec![1.0, 2.0];
-        let sparse = CsMatI::<f64, i64, u64>::new((3, 3), indptr.iter().map(|&x| x as u64).collect(), indices.iter().map(|&x| x as i64).collect(), data);
+        let sparse = CsMatI::<f64, i64, u64>::new(
+            (3, 3),
+            indptr.iter().map(|&x| x as u64).collect(),
+            indices.iter().map(|&x| x as i64).collect(),
+            data,
+        );
         adata2.set_x(&sparse).unwrap();
-        
+
         let read_back = adata2.x().get::<CsMatI<f64, i64, u64>>().unwrap().unwrap();
-        assert_eq!(read_back.indptr().as_slice().unwrap()[2], read_back.indptr().as_slice().unwrap()[1]);
-        
+        assert_eq!(
+            read_back.indptr().as_slice().unwrap()[2],
+            read_back.indptr().as_slice().unwrap()[1]
+        );
+
         // Case 3: NNZ = 0 but shape is non-zero
         let adata3 = AnnData::<B>::new(dir.join("all_zeros")).unwrap();
         let all_zeros = CsMatI::<f64, i64, u64>::new((10, 10), vec![0; 11], vec![], vec![]);
         adata3.obsm().add("zeros", &all_zeros).unwrap();
-        let read_zeros = adata3.obsm().get_item::<CsMatI<f64, i64, u64>>("zeros").unwrap().unwrap();
+        let read_zeros = adata3
+            .obsm()
+            .get_item::<CsMatI<f64, i64, u64>>("zeros")
+            .unwrap()
+            .unwrap();
         assert_eq!(read_zeros.nnz(), 0);
         assert_eq!(read_zeros.rows(), 10);
     });
@@ -216,7 +288,8 @@ pub fn test_anndataset_mixed_layouts<B: Backend>() {
             dir.join("dataset_csr"),
             "sample",
             false,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(dataset.n_obs(), 30);
         let x = dataset.x().get::<CsMatI<f64, i64, u64>>().unwrap().unwrap();
@@ -238,20 +311,20 @@ pub fn test_parallel_reading_stress<B: Backend>() {
             adatas.push((format!("ann_{}", i), adata));
         }
 
-        let dataset = AnnDataSet::<B>::new(
-            adatas,
-            dir.join("dataset_stress"),
-            "sample",
-            false,
-        ).unwrap();
+        let dataset =
+            AnnDataSet::<B>::new(adatas, dir.join("dataset_stress"), "sample", false).unwrap();
 
         // Standard sequential read
         let x_seq = dataset.x().get::<CsMatI<f64, i64, u64>>().unwrap().unwrap();
-        
+
         // StackedArrayElem::select uses Rayon internally for parallel reading
         // We select the entire range to compare with full read
         let select = [SelectInfoElem::full(), SelectInfoElem::full()];
-        let x_par = dataset.x().slice::<CsMatI<f64, i64, u64>, _>(&select).unwrap().unwrap();
+        let x_par = dataset
+            .x()
+            .slice::<CsMatI<f64, i64, u64>, _>(&select)
+            .unwrap()
+            .unwrap();
 
         assert_eq!(x_seq.rows(), n_adatas * n_obs_per_adata);
         assert_eq!(x_seq.nnz(), x_par.nnz());
@@ -354,18 +427,18 @@ pub fn test_take_x<B: Backend>() {
         let adata = AnnData::<B>::new(&file).unwrap();
         let x: ArrayData = Array::random((10, 50), Uniform::new(0, 100).unwrap()).into();
         adata.set_x(&x).unwrap();
-        
+
         // Ensure data is cached first
         adata.x().enable_cache();
         let _ = adata.x().get::<ArrayData>().unwrap();
         assert!(adata.x().is_cached());
-        
+
         let taken_x: ArrayData = adata.take_x().unwrap().unwrap();
         assert_eq!(taken_x, x);
-        
+
         // Internal cache should now be empty
         assert!(!adata.x().is_cached());
-        
+
         // Data should still be accessible on disk (reading it again works)
         let read_again = adata.x().get::<ArrayData>().unwrap().unwrap();
         assert_eq!(read_again, x);
@@ -378,16 +451,16 @@ pub fn test_obsm_drain<B: Backend>() {
         let adata = AnnData::<B>::new(&file).unwrap();
         let x: ArrayData = Array::random((10, 50), Uniform::new(0, 100).unwrap()).into();
         let y: ArrayData = Array::random((10, 20), Uniform::new(0, 100).unwrap()).into();
-        
+
         adata.obsm().add("x", &x).unwrap();
         adata.obsm().add("y", &y).unwrap();
-        
+
         let drained: HashMap<String, ArrayData> = adata.obsm().drain().collect();
-        
+
         assert_eq!(drained.len(), 2);
         assert_eq!(drained.get("x").unwrap(), &x);
         assert_eq!(drained.get("y").unwrap(), &y);
-        
+
         // obsm should now be empty in the original object
         assert!(adata.obsm().keys().is_empty());
     });
@@ -404,10 +477,18 @@ pub fn test_backend_interop<B1: Backend, B2: Backend>() {
         adata1.set_x(&x).unwrap();
 
         let mut config_map = std::collections::HashMap::new();
-        config_map.insert("version".to_string(), Data::Scalar(anndata::data::DynScalar::I32(1)));
-        config_map.insert("author".to_string(), Data::Scalar(anndata::data::DynScalar::String("ian".to_string())));
-        adata1.set_uns([("config".to_string(), Data::Mapping(config_map.into()))]).unwrap();
-        
+        config_map.insert(
+            "version".to_string(),
+            Data::Scalar(anndata::data::DynScalar::I32(1)),
+        );
+        config_map.insert(
+            "author".to_string(),
+            Data::Scalar(anndata::data::DynScalar::String("ian".to_string())),
+        );
+        adata1
+            .set_uns([("config".to_string(), Data::Mapping(config_map.into()))])
+            .unwrap();
+
         let obsm_data: ArrayData = Array::random((50, 5), Uniform::new(0, 100).unwrap()).into();
         adata1.obsm().add("pca", &obsm_data).unwrap();
 
@@ -417,13 +498,13 @@ pub fn test_backend_interop<B1: Backend, B2: Backend>() {
 
         // 3. Open Backend 2 and verify
         let adata2 = AnnData::<B2>::open(B2::open(&file2).unwrap()).unwrap();
-        
+
         let x2 = adata2.x().get::<ArrayData>().unwrap().unwrap();
         assert_eq!(x, x2);
-        
+
         let obsm2 = adata2.obsm().get_item::<ArrayData>("pca").unwrap().unwrap();
         assert_eq!(obsm_data, obsm2);
-        
+
         assert_eq!(adata2.n_obs(), 50);
         assert_eq!(adata2.n_vars(), 100);
     });
@@ -433,26 +514,37 @@ pub fn test_uns_nesting<B: Backend>() {
     with_tmp_dir(|dir| {
         let file = dir.join("test_uns");
         let adata = AnnData::<B>::new(&file).unwrap();
-        
+
         // Create deeply nested data
         let mut inner_map = std::collections::HashMap::new();
-        inner_map.insert("val".to_string(), Data::Scalar(anndata::data::DynScalar::I32(42)));
-        
+        inner_map.insert(
+            "val".to_string(),
+            Data::Scalar(anndata::data::DynScalar::I32(42)),
+        );
+
         let mut middle_map = std::collections::HashMap::new();
         middle_map.insert("inner".to_string(), Data::Mapping(inner_map.into()));
-        
+
         // Save to uns
-        adata.uns().add("config", Data::Mapping(middle_map.into())).unwrap();
-        
+        adata
+            .uns()
+            .add("config", Data::Mapping(middle_map.into()))
+            .unwrap();
+
         // Close and reopen to test serialization
         adata.close().unwrap();
         let adata_read = AnnData::<B>::open(B::open(&file).unwrap()).unwrap();
-        
-        let read_back = adata_read.uns().get_item::<Data>("config").unwrap().unwrap();
-        
+
+        let read_back = adata_read
+            .uns()
+            .get_item::<Data>("config")
+            .unwrap()
+            .unwrap();
+
         if let Data::Mapping(middle) = read_back {
             if let Data::Mapping(inner) = middle.get("inner").unwrap() {
-                if let Data::Scalar(anndata::data::DynScalar::I32(val)) = inner.get("val").unwrap() {
+                if let Data::Scalar(anndata::data::DynScalar::I32(val)) = inner.get("val").unwrap()
+                {
                     assert_eq!(*val, 42);
                     return;
                 }

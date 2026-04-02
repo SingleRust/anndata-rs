@@ -3,13 +3,10 @@ use crate::data::SparseMatrixLayoutE;
 use crate::data::{ArrayData, array::DynArray, array::utils::ExtendableDataset};
 use crate::{ArrayElem, Selectable};
 
-use super::{
-    CsrNonCanonical, DynCsrNonCanonical, DynIndSparseMatrix,
-    DynSparseMatrix,
-};
+use super::{CsrNonCanonical, DynCsrNonCanonical, DynIndSparseMatrix, DynSparseMatrix};
+use crate::backend::get_default_write_config;
 use anyhow::{Context, Result, bail};
 use ndarray::{Array, Array1, ArrayD, ArrayView1, RemoveAxis};
-use crate::backend::get_default_write_config;
 use sprs::{CsMatI, SpIndex};
 
 pub enum MatrixBuilder<B: Backend> {
@@ -449,8 +446,6 @@ impl<D: RemoveAxis, T: BackendData> ArrayChunk for Array<T, D> {
     }
 }
 
-
-
 impl ArrayChunk for DynCsrNonCanonical {
     fn write_by_chunk<B, G, I>(
         iter: I,
@@ -658,9 +653,9 @@ impl ArrayChunk for DynIndSparseMatrix {
     }
 }
 
-
-
-impl<T: BackendData + SpIndex + num::Integer + num::FromPrimitive> ArrayChunk for DynSparseMatrix<T> {
+impl<T: BackendData + SpIndex + num::Integer + num::FromPrimitive> ArrayChunk
+    for DynSparseMatrix<T>
+{
     fn write_by_chunk<B, G, I>(
         iter: I,
         location: &G,
@@ -771,8 +766,15 @@ impl<N: BackendData + std::fmt::Debug, T: BackendData + SpIndex + num::Integer +
                     (in_ptr_raw.raw_storage(), mat.indices(), mat.data());
 
                 indptr_workspace.clear();
-                indptr_workspace.extend(indptr_[..indptr_.len() - 1].iter().map(|&x| (x as u64) + nnz));
-                indptr.extend(0, ArrayView1::from_shape(indptr_workspace.len(), &indptr_workspace)?)?;
+                indptr_workspace.extend(
+                    indptr_[..indptr_.len() - 1]
+                        .iter()
+                        .map(|&x| (x as u64) + nnz),
+                );
+                indptr.extend(
+                    0,
+                    ArrayView1::from_shape(indptr_workspace.len(), &indptr_workspace)?,
+                )?;
 
                 nnz += *indptr_.last().unwrap_or(&0) as u64;
 
@@ -780,8 +782,10 @@ impl<N: BackendData + std::fmt::Debug, T: BackendData + SpIndex + num::Integer +
 
                 indices_workspace.clear();
                 indices_workspace.extend(indices_.iter().map(|&x| x.to_i64().unwrap()));
-                indices.extend(0, ArrayView1::from_shape(indices_workspace.len(), &indices_workspace)?)?;
-
+                indices.extend(
+                    0,
+                    ArrayView1::from_shape(indices_workspace.len(), &indices_workspace)?,
+                )?;
             } else if format == "csr" {
                 let c = mat.cols();
                 if num_cols.is_none() {
@@ -794,8 +798,15 @@ impl<N: BackendData + std::fmt::Debug, T: BackendData + SpIndex + num::Integer +
                         (in_ptr_raw.raw_storage(), mat.indices(), mat.data());
 
                     indptr_workspace.clear();
-                    indptr_workspace.extend(indptr_[..indptr_.len() - 1].iter().map(|&x| (x as u64) + nnz));
-                    indptr.extend(0, ArrayView1::from_shape(indptr_workspace.len(), &indptr_workspace)?)?;
+                    indptr_workspace.extend(
+                        indptr_[..indptr_.len() - 1]
+                            .iter()
+                            .map(|&x| (x as u64) + nnz),
+                    );
+                    indptr.extend(
+                        0,
+                        ArrayView1::from_shape(indptr_workspace.len(), &indptr_workspace)?,
+                    )?;
 
                     nnz += *indptr_.last().unwrap_or(&0) as u64;
 
@@ -803,7 +814,10 @@ impl<N: BackendData + std::fmt::Debug, T: BackendData + SpIndex + num::Integer +
 
                     indices_workspace.clear();
                     indices_workspace.extend(indices_.iter().map(|&x| x.to_i64().unwrap()));
-                    indices.extend(0, ArrayView1::from_shape(indices_workspace.len(), &indices_workspace)?)?;
+                    indices.extend(
+                        0,
+                        ArrayView1::from_shape(indices_workspace.len(), &indices_workspace)?,
+                    )?;
                 } else {
                     bail!("All matrices must have the same number of columns");
                 }
@@ -814,11 +828,14 @@ impl<N: BackendData + std::fmt::Debug, T: BackendData + SpIndex + num::Integer +
         // Write the final nnz value for indptr
         indptr_workspace.clear();
         indptr_workspace.push(nnz);
-        indptr.extend(0, ArrayView1::from_shape(indptr_workspace.len(), &indptr_workspace)?)?;
+        indptr.extend(
+            0,
+            ArrayView1::from_shape(indptr_workspace.len(), &indptr_workspace)?,
+        )?;
         indptr.finish()?;
         indices.finish()?;
         data.finish()?;
-        
+
         group.new_attr(
             "shape",
             [num_rows as u64, num_cols.unwrap_or(0) as u64].as_slice(),

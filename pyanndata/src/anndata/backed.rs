@@ -808,7 +808,10 @@ impl<B: Backend> AnnDataTrait for InnerAnnData<B> {
     }
 
     fn take_x(&self) -> Result<Option<PyArrayData>> {
-        self.adata.inner().take_x::<ArrayData>().map(|x| x.map(Into::into))
+        self.adata
+            .inner()
+            .take_x::<ArrayData>()
+            .map(|x| x.map(Into::into))
     }
     fn get_obs(&self) -> Option<PyDataFrameElem> {
         let inner = self.adata.inner();

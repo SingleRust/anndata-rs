@@ -1,5 +1,8 @@
 use crate::{
-    DataFrameElem, backend::{Backend, DataContainer, GroupOp}, container::{Axis, AxisArrays, Dim, Slot}, data::MAPPING_ENCODING
+    DataFrameElem,
+    backend::{Backend, DataContainer, GroupOp},
+    container::{Axis, AxisArrays, Dim, Slot},
+    data::MAPPING_ENCODING,
 };
 
 use anyhow::Result;
@@ -25,12 +28,18 @@ pub(crate) fn open_obsp<B: Backend>(group: B::Group, n_obs: Option<&Dim>) -> Res
 }
 
 // Helper function to create a new variable matrix (varm)
-pub(crate) fn open_varm<B: Backend>(group: B::Group, n_vars: Option<&Dim>) -> Result<AxisArrays<B>> {
+pub(crate) fn open_varm<B: Backend>(
+    group: B::Group,
+    n_vars: Option<&Dim>,
+) -> Result<AxisArrays<B>> {
     AxisArrays::new(group, Axis::Row, n_vars, None)
 }
 
 // Helper function to create a new pairwise variable matrix (varp)
-pub(crate) fn open_varp<B: Backend>(group: B::Group, n_vars: Option<&Dim>) -> Result<AxisArrays<B>> {
+pub(crate) fn open_varp<B: Backend>(
+    group: B::Group,
+    n_vars: Option<&Dim>,
+) -> Result<AxisArrays<B>> {
     AxisArrays::new(group, Axis::Pairwise, n_vars, None)
 }
 

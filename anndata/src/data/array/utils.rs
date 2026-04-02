@@ -4,8 +4,8 @@ use crate::data::{SelectInfoElem, Shape};
 
 use anyhow::{Result, anyhow};
 use itertools::Itertools;
-use num::traits::{FromPrimitive, ToPrimitive};
 use num::Integer;
+use num::traits::{FromPrimitive, ToPrimitive};
 use sprs::CsMatI;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -203,9 +203,8 @@ where
     let mut new_nnz = 0;
     let new_offsets = std::iter::once(Iptr::zero())
         .chain(major_idx.clone().map(|i| {
-            (offsets[i].to_usize().unwrap()..offsets[i + 1].to_usize().unwrap()).for_each(|jj| {
-                new_nnz += minor_idx_count[indices[jj].to_usize().unwrap()]
-            });
+            (offsets[i].to_usize().unwrap()..offsets[i + 1].to_usize().unwrap())
+                .for_each(|jj| new_nnz += minor_idx_count[indices[jj].to_usize().unwrap()]);
             Iptr::from_usize(new_nnz).unwrap()
         }))
         .collect();
@@ -573,4 +572,3 @@ mod tests {
         assert!(matches!(result, ArrayData::CsrNonCanonical(_)));
     }
 }
-

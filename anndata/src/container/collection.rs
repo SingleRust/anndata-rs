@@ -1,6 +1,6 @@
 use crate::{
     ElemCollectionOp,
-    backend::{AttributeOp, Backend, GroupOp, iter_containers},
+    backend::{AttributeOp, Backend, GroupOp},
     container::base::*,
     data::*,
 };
@@ -141,8 +141,14 @@ impl<B: Backend> ElemCollection<B> {
     }
 
     pub fn new(container: B::Group) -> Result<Self> {
-        let data: Result<HashMap<_, _>> = iter_containers(&container)
-            .map(|(k, v)| Ok((k, Elem::try_from(v)?)))
+        use rayon::prelude::*;
+        let keys = container.list()?;
+        let data: Result<HashMap<_, _>> = keys
+            .into_par_iter()
+            .map(|k| {
+                let v = crate::backend::DataContainer::open(&container, &k)?;
+                Ok((k, Elem::try_from(v)?))
+            })
             .collect();
         let collection = InnerElemCollection {
             container,
@@ -493,8 +499,14 @@ impl<B: Backend> AxisArrays<B> {
         dim1: Option<&Dim>,
         dim2: Option<&Dim>,
     ) -> Result<Self> {
-        let data: HashMap<_, _> = iter_containers::<B>(&group)
-            .map(|(k, v)| (k, ArrayElem::try_from(v).unwrap()))
+        use rayon::prelude::*;
+        let keys = group.list()?;
+        let data: HashMap<_, _> = keys
+            .into_par_iter()
+            .map(|k| {
+                let v = crate::backend::DataContainer::open(&group, &k).unwrap();
+                (k, ArrayElem::try_from(v).unwrap())
+            })
             .collect();
 
         // Get shapes of arrays

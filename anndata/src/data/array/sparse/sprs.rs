@@ -7,9 +7,60 @@ use sprs::{CsMatI, SpIndex};
 
 use crate::{
     HasShape, Readable, ReadableArray, Selectable, Writable, WritableArray,
-    backend::{AttributeOp, BackendData, DataType, DatasetOp, GroupOp},
-    data::{Element, MetaData, Shape, Stackable, SelectInfoElemBounds, SelectInfoElem},
+    backend::{AttributeOp, Backend, BackendData, DataType, DatasetOp, GroupOp},
+    data::{
+        DynArray, Element, MetaData, SelectInfoElem, SelectInfoElemBounds, Shape, Stackable,
+    },
 };
+
+fn read_indices<B: Backend, D: DatasetOp<B>, T: BackendData + SpIndex + num::FromPrimitive>(
+    dataset: &D,
+) -> anyhow::Result<Vec<T>> {
+    if dataset.dtype()? == T::DTYPE {
+        Ok(dataset.read_array::<T, Ix1>()?.into_raw_vec_and_offset().0)
+    } else {
+        match dataset.read_dyn_array()? {
+            DynArray::I8(arr) => Ok(arr.into_iter().map(|x| T::from_i8(x).unwrap()).collect()),
+            DynArray::I16(arr) => Ok(arr.into_iter().map(|x| T::from_i16(x).unwrap()).collect()),
+            DynArray::I32(arr) => Ok(arr.into_iter().map(|x| T::from_i32(x).unwrap()).collect()),
+            DynArray::I64(arr) => Ok(arr.into_iter().map(|x| T::from_i64(x).unwrap()).collect()),
+            DynArray::U8(arr) => Ok(arr.into_iter().map(|x| T::from_u8(x).unwrap()).collect()),
+            DynArray::U16(arr) => Ok(arr.into_iter().map(|x| T::from_u16(x).unwrap()).collect()),
+            DynArray::U32(arr) => Ok(arr.into_iter().map(|x| T::from_u32(x).unwrap()).collect()),
+            DynArray::U64(arr) => Ok(arr.into_iter().map(|x| T::from_u64(x).unwrap()).collect()),
+            _ => bail!("Unsupported index type"),
+        }
+    }
+}
+
+fn read_indices_slice<
+    B: Backend,
+    D: DatasetOp<B>,
+    T: BackendData + SpIndex + num::FromPrimitive,
+    S: AsRef<SelectInfoElem>,
+>(
+    dataset: &D,
+    selection: &[S],
+) -> anyhow::Result<Vec<T>> {
+    if dataset.dtype()? == T::DTYPE {
+        Ok(dataset
+            .read_array_slice::<T, _, Ix1>(selection)?
+            .into_raw_vec_and_offset()
+            .0)
+    } else {
+        match dataset.read_dyn_array_slice(selection)? {
+            DynArray::I8(arr) => Ok(arr.into_iter().map(|x| T::from_i8(x).unwrap()).collect()),
+            DynArray::I16(arr) => Ok(arr.into_iter().map(|x| T::from_i16(x).unwrap()).collect()),
+            DynArray::I32(arr) => Ok(arr.into_iter().map(|x| T::from_i32(x).unwrap()).collect()),
+            DynArray::I64(arr) => Ok(arr.into_iter().map(|x| T::from_i64(x).unwrap()).collect()),
+            DynArray::U8(arr) => Ok(arr.into_iter().map(|x| T::from_u8(x).unwrap()).collect()),
+            DynArray::U16(arr) => Ok(arr.into_iter().map(|x| T::from_u16(x).unwrap()).collect()),
+            DynArray::U32(arr) => Ok(arr.into_iter().map(|x| T::from_u32(x).unwrap()).collect()),
+            DynArray::U64(arr) => Ok(arr.into_iter().map(|x| T::from_u64(x).unwrap()).collect()),
+            _ => bail!("Unsupported index type"),
+        }
+    }
+}
 
 impl<N, T: SpIndex> HasShape for CsMatI<N, T, u64> {
     fn shape(&self) -> Shape {
@@ -261,61 +312,62 @@ impl<N: BackendData, T: BackendData + SpIndex + num::FromPrimitive> Readable for
             DataType::CsrMatrix(_, _) => {
                 let group = container.as_group()?;
                 let shape: Vec<u64> = group.get_attr("shape")?;
-                let data: Vec<N> = group
-                    .open_dataset("data")?
-                    .read_array::<_, Ix1>()?
-                    .into_raw_vec_and_offset()
-                    .0;
+                let (data, (indptr, indices)) = rayon::join(
+                    || {
+                        group
+                            .open_dataset("data")?
+                            .read_array::<_, Ix1>()
+                            .map(|x| x.into_raw_vec_and_offset().0)
+                    },
+                    || {
+                        rayon::join(
+                            || {
+                                group
+                                    .open_dataset("indptr")?
+                                    .read_array_cast::<u64, Ix1>()
+                                    .map(|x| x.into_raw_vec_and_offset().0)
+                            },
+                            || read_indices::<B, _, T>(&group.open_dataset("indices")?),
+                        )
+                    },
+                );
 
-                // Read indptr as u64 and indices as i64 to be robust against what builders write
-                let indptr: Vec<u64> = group
-                    .open_dataset("indptr")?
-                    .read_array_cast::<u64, Ix1>()?
-                    .into_raw_vec_and_offset()
-                    .0;
-                let indices: Vec<T> = group
-                    .open_dataset("indices")?
-                    .read_array_cast::<i64, Ix1>()?
-                    .into_raw_vec_and_offset()
-                    .0
-                    .into_iter()
-                    .map(|x| T::from_i64(x).unwrap())
-                    .collect();
                 CsMatI::try_new(
                     (shape[0] as usize, shape[1] as usize),
-                    indptr,
-                    indices,
-                    data,
+                    indptr?,
+                    indices?,
+                    data?,
                 )
                 .map_err(|(_, _, _, e)| anyhow::anyhow!("Cannot read csr matrix {}", e))
             }
             DataType::CscMatrix(_, _) => {
                 let group = container.as_group()?;
                 let shape: Vec<u64> = group.get_attr("shape")?;
-                let data: Vec<N> = group
-                    .open_dataset("data")?
-                    .read_array::<_, Ix1>()?
-                    .into_raw_vec_and_offset()
-                    .0;
+                let (data, (indptr, indices)) = rayon::join(
+                    || {
+                        group
+                            .open_dataset("data")?
+                            .read_array::<_, Ix1>()
+                            .map(|x| x.into_raw_vec_and_offset().0)
+                    },
+                    || {
+                        rayon::join(
+                            || {
+                                group
+                                    .open_dataset("indptr")?
+                                    .read_array_cast::<u64, Ix1>()
+                                    .map(|x| x.into_raw_vec_and_offset().0)
+                            },
+                            || read_indices::<B, _, T>(&group.open_dataset("indices")?),
+                        )
+                    },
+                );
 
-                let indptr: Vec<u64> = group
-                    .open_dataset("indptr")?
-                    .read_array_cast::<u64, Ix1>()?
-                    .into_raw_vec_and_offset()
-                    .0;
-                let indices: Vec<T> = group
-                    .open_dataset("indices")?
-                    .read_array_cast::<i64, Ix1>()?
-                    .into_raw_vec_and_offset()
-                    .0
-                    .into_iter()
-                    .map(|x| T::from_i64(x).unwrap())
-                    .collect();
                 CsMatI::try_new_csc(
                     (shape[0] as usize, shape[1] as usize),
-                    indptr,
-                    indices,
-                    data,
+                    indptr?,
+                    indices?,
+                    data?,
                 )
                 .map_err(|(_, _, _, e)| anyhow::anyhow!("Cannot read csc matrix {}", e))
             }
@@ -356,8 +408,77 @@ impl<N: BackendData, T: BackendData + SpIndex + ToPrimitive + num::Integer + num
                     return Self::read(container);
                 }
 
-                // TODO: optimized read_select
-                return Ok(Self::read(container)?.select(info));
+                let shape = Self::get_shape(container)?;
+                let major_axis = if let DataType::CsrMatrix(_, _) = data_type {
+                    0
+                } else {
+                    1
+                };
+                let major_bounds =
+                    SelectInfoElemBounds::new(info[major_axis].as_ref(), shape[major_axis]);
+
+                if let SelectInfoElemBounds::Slice(slice) = major_bounds {
+                    if slice.step == 1 {
+                        let group = container.as_group()?;
+                        let start = slice.start;
+                        let end = slice.end;
+
+                        let indptr: Vec<u64> = group
+                            .open_dataset("indptr")?
+                            .read_array_slice_cast::<u64, Ix1, _>(&[SelectInfoElem::from(
+                                start..end + 1,
+                            )])?
+                            .into_raw_vec_and_offset()
+                            .0;
+                        let nnz_start = indptr[0] as usize;
+                        let nnz_end = *indptr.last().unwrap() as usize;
+                        let (data, indices) = rayon::join(
+                            || {
+                                group
+                                    .open_dataset("data")?
+                                    .read_array_slice::<N, _, Ix1>(&[SelectInfoElem::from(
+                                        nnz_start..nnz_end,
+                                    )])
+                                    .map(|x| x.into_raw_vec_and_offset().0)
+                            },
+                            || {
+                                read_indices_slice::<B, _, T, _>(
+                                    &group.open_dataset("indices")?,
+                                    &[SelectInfoElem::from(nnz_start..nnz_end)],
+                                )
+                            },
+                        );
+                        let new_indptr: Vec<u64> =
+                            indptr.into_iter().map(|x| x - nnz_start as u64).collect();
+
+                        let res = if major_axis == 0 {
+                            CsMatI::try_new(
+                                (major_bounds.len(), shape[1]),
+                                new_indptr,
+                                indices?,
+                                data?,
+                            )
+                            .map_err(|(_, _, _, e)| anyhow::anyhow!("Cannot read csr matrix {}", e))?
+                        } else {
+                            CsMatI::try_new_csc(
+                                (shape[0], major_bounds.len()),
+                                new_indptr,
+                                indices?,
+                                data?,
+                            )
+                            .map_err(|(_, _, _, e)| anyhow::anyhow!("Cannot read csc matrix {}", e))?
+                        };
+
+                        let minor_axis = 1 - major_axis;
+                        if !info[minor_axis].as_ref().is_full() {
+                            return Ok(res.select(info));
+                        } else {
+                            return Ok(res);
+                        }
+                    }
+                }
+
+                Ok(Self::read(container)?.select(info))
             }
             _ => bail!("Cannot read sparse matrix from group."),
         }

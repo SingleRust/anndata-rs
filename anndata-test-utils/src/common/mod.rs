@@ -5,7 +5,6 @@ use anndata::data::{DataFrameIndex, SelectInfoElem};
 use anyhow::Result;
 use itertools::Itertools;
 use nalgebra::{ClosedAddAssign, Scalar};
-use sprs::{CsMatI, TriMatI};
 use ndarray::Array;
 use ndarray_rand::rand_distr::uniform::SampleUniform;
 use ndarray_rand::rand_distr::Uniform;
@@ -14,6 +13,7 @@ use num::Zero;
 use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
 use rand::seq::IteratorRandom;
+use sprs::{CsMatI, TriMatI};
 use std::path::{Path, PathBuf};
 use tempfile::tempdir;
 
@@ -288,7 +288,12 @@ where
     let csr = coo.to_csr();
     CsMatI::new(
         csr.shape(),
-        csr.indptr().as_slice().unwrap().iter().map(|&x: &usize| x as u64).collect(),
+        csr.indptr()
+            .as_slice()
+            .unwrap()
+            .iter()
+            .map(|&x: &usize| x as u64)
+            .collect(),
         csr.indices().to_vec(),
         csr.data().to_vec(),
     )
@@ -312,7 +317,12 @@ where
     let csc = coo.to_csc();
     CsMatI::new_csc(
         csc.shape(),
-        csc.indptr().as_slice().unwrap().iter().map(|&x: &usize| x as u64).collect(),
+        csc.indptr()
+            .as_slice()
+            .unwrap()
+            .iter()
+            .map(|&x: &usize| x as u64)
+            .collect(),
         csc.indices().to_vec(),
         csc.data().to_vec(),
     )
@@ -343,12 +353,12 @@ pub fn anndata_eq<B1: Backend, B2: Backend>(
         && adata1.obs_names() == adata2.obs_names()
         && adata1.var_names() == adata2.var_names()
         && {
-            let a = adata1.read_obs()?; 
+            let a = adata1.read_obs()?;
             let b = adata2.read_obs()?;
             a == b || (a.height() == 0 && b.height() == 0)
         }
         && {
-            let a = adata1.read_var()?; 
+            let a = adata1.read_var()?;
             let b = adata2.read_var()?;
             a == b || (a.height() == 0 && b.height() == 0)
         }
@@ -369,7 +379,8 @@ pub fn anndata_eq<B1: Backend, B2: Backend>(
             adata1.uns().get_item::<Data>(k).unwrap() == adata2.uns().get_item(k).unwrap()
         })
         && adata1.layers().keys().iter().all(|k| {
-            adata1.layers().get_item::<ArrayData>(k).unwrap() == adata2.layers().get_item(k).unwrap()
+            adata1.layers().get_item::<ArrayData>(k).unwrap()
+                == adata2.layers().get_item(k).unwrap()
         });
     Ok(is_equal)
 }

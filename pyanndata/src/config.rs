@@ -50,17 +50,17 @@ impl PyCompression {
 }
 
 /// Set the default write configuration for all subsequent write operations.
-/// 
+///
 /// This configuration is stored in thread-local storage and applies to all
 /// dataset write operations that don't explicitly specify a configuration.
-/// 
+///
 /// Parameters
 /// ----------
 /// config : dict, optional
 ///     Dictionary with optional keys:
 ///     - "compression": Compression or None
 ///     - "block_size": list of int or None
-/// 
+///
 /// Examples
 /// --------
 /// >>> import anndata_rs
@@ -91,14 +91,14 @@ pub fn py_set_default_write_config(config: Bound<'_, PyDict>) -> PyResult<()> {
 }
 
 /// Get the current default write configuration.
-/// 
+///
 /// Returns the thread-local default configuration used for dataset writes.
-/// 
+///
 /// Returns
 /// -------
 /// dict
 ///     Dictionary with keys "compression" and "block_size".
-/// 
+///
 /// Examples
 /// --------
 /// >>> import anndata_rs

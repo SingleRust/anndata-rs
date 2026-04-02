@@ -11,12 +11,12 @@ use crate::{
     },
 };
 
+use crate::backend::get_default_write_config;
 use anyhow::{Result, anyhow};
 use ndarray::{Array, Array1, ArrayD, ArrayView, Axis, Dimension, RemoveAxis, SliceInfoElem};
 use polars::series::Series;
 use std::collections::HashMap;
 use std::ops::Index;
-use crate::backend::get_default_write_config;
 
 impl<'a, T: BackendData, D> Element for ArrayView<'a, T, D> {
     fn metadata(&self) -> MetaData {
@@ -176,10 +176,13 @@ impl TryInto<Series> for CategoricalArray {
         if self.codes.shape().len() != 1 {
             return Err(anyhow!("Can only convert 1D CategoricalArray to Series"));
         }
-        let series = self.codes.into_iter().map(|x|
-            x.and_then(|idx| 
-                ndarray::ArrayRef::get(&self.categories, idx as usize).cloned())
-        ).collect();
+        let series = self
+            .codes
+            .into_iter()
+            .map(|x| {
+                x.and_then(|idx| ndarray::ArrayRef::get(&self.categories, idx as usize).cloned())
+            })
+            .collect();
         Ok(series)
     }
 }
@@ -303,14 +306,22 @@ impl ReadableArray for CategoricalArray {
     }
 }
 
-impl<T: BackendData + num::ToPrimitive + Clone, D: Dimension + RemoveAxis> ArrayArithmetic for Array<T, D> {
+impl<T: BackendData + num::ToPrimitive + Clone, D: Dimension + RemoveAxis> ArrayArithmetic
+    for Array<T, D>
+{
     fn sum(&self) -> f64 {
-        self.iter().map(|x| <f64 as NumCast>::from(x.clone()).unwrap()).sum()
+        self.iter()
+            .map(|x| <f64 as NumCast>::from(x.clone()).unwrap())
+            .sum()
     }
 
     fn sum_axis(&self, axis: usize) -> Result<ArrayD<f64>> {
         if axis >= self.ndim() {
-            anyhow::bail!("axis {} out of bounds for array of dimension {}", axis, self.ndim());
+            anyhow::bail!(
+                "axis {} out of bounds for array of dimension {}",
+                axis,
+                self.ndim()
+            );
         }
         let arr = self.map(|x| <f64 as NumCast>::from(x.clone()).unwrap());
         Ok(Array::sum_axis(&arr, axis)?.into_dyn())

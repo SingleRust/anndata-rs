@@ -1,10 +1,12 @@
 use crate::data::{isinstance_of_csc, isinstance_of_csr};
 
-use anndata::data::{CsrNonCanonical, DynArray, DynIndSparseMatrix, DynSparseMatrix, DynCsrNonCanonical};
-use sprs::CsMatI;
+use anndata::data::{
+    CsrNonCanonical, DynArray, DynCsrNonCanonical, DynIndSparseMatrix, DynSparseMatrix,
+};
 use ndarray::ArrayD;
 use numpy::{IntoPyArray, PyArrayMethods, PyReadonlyArrayDyn};
 use pyo3::{IntoPyObjectExt, exceptions::PyTypeError, prelude::*};
+use sprs::CsMatI;
 
 macro_rules! proc_py_numeric {
     ($dtype:expr, $data:expr, $ty_anno:ident $(, $($gen:tt),*)?) => {
@@ -127,7 +129,9 @@ pub(super) fn to_csr(ob: &Bound<'_, PyAny>) -> PyResult<DynIndSparseMatrix> {
                     .to_vec()
                     .unwrap()
             ),
-            CsMatI, i32, u64
+            CsMatI,
+            i32,
+            u64
         );
         Ok(DynIndSparseMatrix::I32(csr))
     } else {
@@ -143,7 +147,9 @@ pub(super) fn to_csr(ob: &Bound<'_, PyAny>) -> PyResult<DynIndSparseMatrix> {
                     .to_vec()
                     .unwrap()
             ),
-            CsMatI, i64, u64
+            CsMatI,
+            i64,
+            u64
         );
         Ok(DynIndSparseMatrix::I64(csr))
     }
@@ -203,7 +209,9 @@ pub(super) fn to_csc(ob: &Bound<'_, PyAny>) -> PyResult<DynIndSparseMatrix> {
                     .to_vec()
                     .unwrap()
             ),
-            CsMatI, i32, u64
+            CsMatI,
+            i32,
+            u64
         );
         Ok(DynIndSparseMatrix::I32(csc))
     } else {
@@ -219,7 +227,9 @@ pub(super) fn to_csc(ob: &Bound<'_, PyAny>) -> PyResult<DynIndSparseMatrix> {
                     .to_vec()
                     .unwrap()
             ),
-            CsMatI, i64, u64
+            CsMatI,
+            i64,
+            u64
         );
         Ok(DynIndSparseMatrix::I64(csc))
     }
@@ -267,7 +277,7 @@ macro_rules! match_inner {
             DynSparseMatrix::Bool(m) => $helper(m, $py),
             DynSparseMatrix::String(_) => todo!(),
         }
-    }
+    };
 }
 
 macro_rules! dyn_sparse_to_py {
@@ -283,7 +293,10 @@ macro_rules! dyn_sparse_to_py {
     };
 }
 
-pub(super) fn csr_to_py<'py>(csr: DynIndSparseMatrix, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+pub(super) fn csr_to_py<'py>(
+    csr: DynIndSparseMatrix,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyAny>> {
     fn helper<'py, T: numpy::Element, Ix: numpy::Element + sprs::SpIndex>(
         csr: CsMatI<T, Ix, u64>,
         py: Python<'py>,
@@ -342,7 +355,10 @@ pub(super) fn csr_noncanonical_to_py<'py>(
     }
 }
 
-pub(super) fn csc_to_py<'py>(csc: DynIndSparseMatrix, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+pub(super) fn csc_to_py<'py>(
+    csc: DynIndSparseMatrix,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyAny>> {
     fn helper<'py, T: numpy::Element, Ix: numpy::Element + sprs::SpIndex>(
         csc: CsMatI<T, Ix, u64>,
         py: Python<'py>,

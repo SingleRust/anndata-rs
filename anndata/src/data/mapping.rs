@@ -1,9 +1,10 @@
-use crate::backend::{Backend, GroupOp, DataContainer, iter_containers, DataType};
+use crate::backend::{Backend, DataContainer, DataType, GroupOp};
 use crate::data::{Data, Readable, Writable};
 
+use anyhow::Result;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::ops::Deref;
-use anyhow::Result;
 
 use super::{Element, MetaData};
 
@@ -42,15 +43,25 @@ impl Element for Mapping {
 
 impl Readable for Mapping {
     fn read<B: Backend>(container: &DataContainer<B>) -> Result<Self> {
-        let data: Result<_> = iter_containers::<B>(container.as_group()?).map(|(k, v)| {
-            Ok((k.to_owned(), Data::read(&v)?))
-        }).collect();
+        let group = container.as_group()?;
+        let keys = group.list()?;
+        let data: Result<_> = keys
+            .into_par_iter()
+            .map(|k| {
+                let v = DataContainer::open(group, &k)?;
+                Ok((k.to_owned(), Data::read(&v)?))
+            })
+            .collect();
         Ok(Mapping(data?))
     }
 }
 
 impl Writable for Mapping {
-    fn write<B: Backend, G: GroupOp<B>>(&self, location: &G, name: &str) -> Result<DataContainer<B>> {
+    fn write<B: Backend, G: GroupOp<B>>(
+        &self,
+        location: &G,
+        name: &str,
+    ) -> Result<DataContainer<B>> {
         let mut group = location.new_group(name)?;
         self.metadata().save(&mut group)?;
         self.0

@@ -316,7 +316,7 @@ impl<N: BackendData, T: BackendData + SpIndex + num::FromPrimitive> Readable for
                     || {
                         group
                             .open_dataset("data")?
-                            .read_array::<_, Ix1>()
+                            .read_array::<N, Ix1>()
                             .map(|x| x.into_raw_vec_and_offset().0)
                     },
                     || {
@@ -324,10 +324,15 @@ impl<N: BackendData, T: BackendData + SpIndex + num::FromPrimitive> Readable for
                             || {
                                 group
                                     .open_dataset("indptr")?
-                                    .read_array_cast::<u64, Ix1>()
+                                    .read_array::<u64, Ix1>()
                                     .map(|x| x.into_raw_vec_and_offset().0)
                             },
-                            || read_indices::<B, _, T>(&group.open_dataset("indices")?),
+                            || {
+                                group
+                                    .open_dataset("indices")?
+                                    .read_array::<T, Ix1>()
+                                    .map(|x| x.into_raw_vec_and_offset().0)
+                            },
                         )
                     },
                 );
@@ -347,7 +352,7 @@ impl<N: BackendData, T: BackendData + SpIndex + num::FromPrimitive> Readable for
                     || {
                         group
                             .open_dataset("data")?
-                            .read_array::<_, Ix1>()
+                            .read_array::<N, Ix1>()
                             .map(|x| x.into_raw_vec_and_offset().0)
                     },
                     || {
@@ -355,10 +360,15 @@ impl<N: BackendData, T: BackendData + SpIndex + num::FromPrimitive> Readable for
                             || {
                                 group
                                     .open_dataset("indptr")?
-                                    .read_array_cast::<u64, Ix1>()
+                                    .read_array::<u64, Ix1>()
                                     .map(|x| x.into_raw_vec_and_offset().0)
                             },
-                            || read_indices::<B, _, T>(&group.open_dataset("indices")?),
+                            || {
+                                group
+                                    .open_dataset("indices")?
+                                    .read_array::<T, Ix1>()
+                                    .map(|x| x.into_raw_vec_and_offset().0)
+                            },
                         )
                     },
                 );
@@ -425,7 +435,7 @@ impl<N: BackendData, T: BackendData + SpIndex + ToPrimitive + num::Integer + num
 
                         let indptr: Vec<u64> = group
                             .open_dataset("indptr")?
-                            .read_array_slice_cast::<u64, Ix1, _>(&[SelectInfoElem::from(
+                            .read_array_slice::<u64, _, Ix1>(&[SelectInfoElem::from(
                                 start..end + 1,
                             )])?
                             .into_raw_vec_and_offset()
@@ -442,10 +452,12 @@ impl<N: BackendData, T: BackendData + SpIndex + ToPrimitive + num::Integer + num
                                     .map(|x| x.into_raw_vec_and_offset().0)
                             },
                             || {
-                                read_indices_slice::<B, _, T, _>(
-                                    &group.open_dataset("indices")?,
-                                    &[SelectInfoElem::from(nnz_start..nnz_end)],
-                                )
+                                group
+                                    .open_dataset("indices")?
+                                    .read_array_slice::<T, _, Ix1>(&[SelectInfoElem::from(
+                                        nnz_start..nnz_end,
+                                    )])
+                                    .map(|x| x.into_raw_vec_and_offset().0)
                             },
                         );
                         let new_indptr: Vec<u64> =

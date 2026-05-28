@@ -14,7 +14,7 @@ use super::SelectInfoElemBounds;
 
 #[derive(Clone, Debug)]
 pub enum Index {
-    Intervals(Box<NamedIntervals>),
+    Intervals(NamedIntervals),
     List(List<String>),
     Range(Range<usize>),
 }
@@ -81,7 +81,7 @@ impl Index {
             SelectInfoElemBounds::Slice(slice) => self.slice(slice.start, slice.end),
             SelectInfoElemBounds::Index(index) => {
                 let vec = self.clone().into_vec();
-                index.iter().map(|i| vec[*i].clone()).collect()
+                index.into_iter().map(|i| vec[*i].clone()).collect()
             }
         }
     }
@@ -125,7 +125,7 @@ impl Index {
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = String> + '_> {
         match self {
-            Index::List(list) => Box::new(list.items.iter().cloned()),
+            Index::List(list) => Box::new(list.items.iter().map(|x| x.clone())),
             _ => self.clone().into_iter(),
         }
     }
@@ -162,7 +162,7 @@ impl FromIterator<String> for Index {
 
 impl<S: Into<String>> FromIterator<(S, Interval)> for Index {
     fn from_iter<T: IntoIterator<Item = (S, Interval)>>(iter: T) -> Self {
-        Self::Intervals(Box::new(NamedIntervals::from_iter(iter)))
+        Self::Intervals(NamedIntervals::from_iter(iter))
     }
 }
 
@@ -174,7 +174,7 @@ impl IntoIterator for Index {
         match self {
             Index::Intervals(map) => {
                 Box::new(map.intervals.into_iter().flat_map(|(k, interval)| {
-                    interval.map(move |(start, end)| format!("{k}:{start}-{end}"))
+                    interval.map(move |(start, end)| format!("{}:{}-{}", k, start, end))
                 }))
             }
             Index::List(list) => Box::new(list.items.into_iter()),
@@ -206,10 +206,6 @@ impl NamedIntervals {
 
     pub fn len(&self) -> usize {
         self.accum_length.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.accum_length.is_empty()
     }
 }
 
@@ -259,10 +255,6 @@ impl Interval {
         num::integer::div_ceil(self.end - self.start, self.step)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     fn slice(&self, start: usize, end: usize) -> Self {
         let start = self.start + self.step * start;
         let end = self.start + self.step * end;
@@ -284,7 +276,7 @@ impl Iterator for Interval {
         } else {
             let end = (self.start + self.size).min(self.end);
             let item = (self.start, end);
-            self.start += self.step;
+            self.start = self.start + self.step;
             Some(item)
         }
     }
@@ -310,10 +302,10 @@ impl<K: Hash + Eq> List<K> {
         }
     }
 
-    pub fn get_index<Q>(&self, item: &Q) -> Option<usize>
+    pub fn get_index<Q: ?Sized>(&self, item: &Q) -> Option<usize>
     where
         K: Borrow<Q>,
-        Q: ?Sized + Hash + Eq,
+        Q: Hash + Eq,
     {
         self.index_map.get(item).cloned()
     }
@@ -411,10 +403,11 @@ impl VecVecIndex {
         indices: &[usize],
     ) -> (HashMap<usize, SelectInfoElem>, Option<Vec<usize>>) {
         let (new_indices, orders): (HashMap<usize, SelectInfoElem>, Vec<_>) = indices
-            .iter()
+            .into_iter()
             .map(|x| self.ix(x))
             .enumerate()
             .sorted_by_key(|(_, (x, _))| *x)
+            .into_iter()
             .chunk_by(|(_, (x, _))| *x)
             .into_iter()
             .map(|(outer, inner)| {
@@ -446,10 +439,6 @@ impl VecVecIndex {
     pub fn len(&self) -> usize {
         *self.0.last().unwrap_or(&0)
     }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
 }
 
 impl FromIterator<usize> for VecVecIndex {
@@ -459,7 +448,7 @@ impl FromIterator<usize> for VecVecIndex {
     {
         let index: SmallVec<_> = std::iter::once(0)
             .chain(iter.into_iter().scan(0, |state, x| {
-                *state += x;
+                *state = *state + x;
                 Some(*state)
             }))
             .collect();
@@ -477,7 +466,7 @@ mod tests {
         if n == 0 {
             Just(Index::empty()).boxed()
         } else {
-            let list = (0..n).map(|i| format!("i_{i}")).collect();
+            let list = (0..n).map(|i| format!("i_{}", i)).collect();
             let range = n.into();
             let interval = (0..n).prop_flat_map(move |i| {
                 (Just(i), (0..n - i)).prop_flat_map(move |(a, b)| {
@@ -485,7 +474,7 @@ mod tests {
                     [a, b, c]
                         .into_iter()
                         .filter(|x| *x != 0)
-                        .map(interval_strat)
+                        .map(|x| interval_strat(x))
                         .collect::<Vec<_>>()
                         .prop_map(move |x| {
                             x.into_iter()
@@ -500,7 +489,7 @@ mod tests {
     }
 
     fn interval_strat(n: usize) -> impl Strategy<Value = Interval> {
-        (1_usize..100, 1_usize..100).prop_map(move |(size, step)| Interval {
+        (1 as usize..100, 1 as usize..100).prop_map(move |(size, step)| Interval {
             start: 0,
             end: n * step,
             size,
@@ -574,7 +563,7 @@ mod tests {
 
     #[test]
     fn test_index() {
-        let index = (0_usize..500).prop_flat_map(|n| (Just(n), index_strat(n), select_strat(n)));
+        let index = (0 as usize..500).prop_flat_map(|n| (Just(n), index_strat(n), select_strat(n)));
         proptest!(ProptestConfig::with_cases(256), |((n, i, slice) in index)| {
             prop_assert_eq!(i.len(), n);
             prop_assert_eq!(i.len(), i.clone().into_vec().len());

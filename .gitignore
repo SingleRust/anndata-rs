@@ -19,6 +19,7 @@ __pycache__
 tests/data
 data
 test_zarr/*
+test_zarr
 
 t_py
 

@@ -3,3 +3,7 @@
 [[package]]
 name = "pyanndata"
 publish = false
+
+[[package]]
+name = "anndata-test-utils"
+publish = false

@@ -97,6 +97,9 @@ jobs:
     steps:
     - name: Download
       uses: actions/download-artifact@v8
+      with:
+        name: documentation
+        path: ./documentation
 
     - name: Upload doc
       uses: peaceiris/actions-gh-pages@v4

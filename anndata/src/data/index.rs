@@ -13,6 +13,7 @@ use std::{collections::HashMap, ops::Range};
 use super::SelectInfoElemBounds;
 
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum Index {
     Intervals(NamedIntervals),
     List(List<String>),
@@ -207,6 +208,10 @@ impl NamedIntervals {
     pub fn len(&self) -> usize {
         self.accum_length.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.accum_length.len() == 0
+    }
 }
 
 impl<S: Into<String>> FromIterator<(S, Interval)> for NamedIntervals {
@@ -253,6 +258,10 @@ impl Interval {
 
     pub fn len(&self) -> usize {
         num::integer::div_ceil(self.end - self.start, self.step)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.start >= self.end
     }
 
     fn slice(&self, start: usize, end: usize) -> Self {
@@ -302,10 +311,10 @@ impl<K: Hash + Eq> List<K> {
         }
     }
 
-    pub fn get_index<Q: ?Sized>(&self, item: &Q) -> Option<usize>
+    pub fn get_index<Q>(&self, item: &Q) -> Option<usize>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: ?Sized + Hash + Eq,
     {
         self.index_map.get(item).cloned()
     }
@@ -473,7 +482,7 @@ mod tests {
                     [a, b, c]
                         .into_iter()
                         .filter(|x| *x != 0)
-                        .map(|x| interval_strat(x))
+                        .map(interval_strat)
                         .collect::<Vec<_>>()
                         .prop_map(move |x| {
                             x.into_iter()
@@ -488,7 +497,7 @@ mod tests {
     }
 
     fn interval_strat(n: usize) -> impl Strategy<Value = Interval> {
-        (1 as usize..100, 1 as usize..100).prop_map(move |(size, step)| Interval {
+        (1_usize..100, 1_usize..100).prop_map(move |(size, step)| Interval {
             start: 0,
             end: n * step,
             size,
@@ -562,7 +571,7 @@ mod tests {
 
     #[test]
     fn test_index() {
-        let index = (0 as usize..500).prop_flat_map(|n| (Just(n), index_strat(n), select_strat(n)));
+        let index = (0_usize..500).prop_flat_map(|n| (Just(n), index_strat(n), select_strat(n)));
         proptest!(ProptestConfig::with_cases(256), |((n, i, slice) in index)| {
             prop_assert_eq!(i.len(), n);
             prop_assert_eq!(i.len(), i.clone().into_vec().len());

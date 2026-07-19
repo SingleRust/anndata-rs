@@ -18,13 +18,13 @@ fn test_complex_dataframe() {
     let input = "tests/data/sample.h5ad";
     with_tmp_dir(|dir| {
         let file = dir.join("test.h5");
-        let adata = AnnData::<H5>::open(H5::open(&input).unwrap()).unwrap();
+        let adata = AnnData::<H5>::open(H5::open(input).unwrap()).unwrap();
         adata.write::<H5, _>(file, None, None).unwrap();
     });
 
     with_tmp_dir(|dir| {
         let file = dir.join("test.zarr");
-        let adata = AnnData::<H5>::open(H5::open(&input).unwrap()).unwrap();
+        let adata = AnnData::<H5>::open(H5::open(input).unwrap()).unwrap();
         adata.write::<Zarr, _>(file, None, None).unwrap();
     });
 }
@@ -82,11 +82,11 @@ fn test_speacial_cases() {
     with_tmp_dir(|dir| {
         let file = dir.join("test.h5");
         let adata_gen = || AnnData::<H5>::new(&file).unwrap();
-        utils::test_speacial_cases(|| adata_gen());
+        utils::test_speacial_cases(adata_gen);
 
         let file = dir.join("test.zarr");
         let adata_gen = || AnnData::<Zarr>::new(&file).unwrap();
-        utils::test_speacial_cases(|| adata_gen());
+        utils::test_speacial_cases(adata_gen);
     })
 }
 
@@ -95,11 +95,11 @@ fn test_noncanonical() {
     with_tmp_dir(|dir| {
         let file = dir.join("test.h5");
         let adata_gen = || AnnData::<H5>::new(&file).unwrap();
-        utils::test_noncanonical(|| adata_gen());
+        utils::test_noncanonical(adata_gen);
 
         let file = dir.join("test.zarr");
         let adata_gen = || AnnData::<Zarr>::new(&file).unwrap();
-        utils::test_noncanonical(|| adata_gen());
+        utils::test_noncanonical(adata_gen);
     })
 }
 
@@ -108,11 +108,11 @@ fn test_io() {
     with_tmp_dir(|dir| {
         let file = dir.join("test.h5");
         let adata_gen = || AnnData::<H5>::new(&file).unwrap();
-        utils::test_io(|| adata_gen());
+        utils::test_io(adata_gen);
 
         let file = dir.join("test.zarr");
         let adata_gen = || AnnData::<Zarr>::new(&file).unwrap();
-        utils::test_io(|| adata_gen());
+        utils::test_io(adata_gen);
     })
 }
 
@@ -121,11 +121,11 @@ fn test_index() {
     with_tmp_dir(|dir| {
         let file = dir.join("test.h5");
         let adata_gen = || AnnData::<H5>::new(&file).unwrap();
-        utils::test_index(|| adata_gen());
+        utils::test_index(adata_gen);
 
         let file = dir.join("test.zarr");
         let adata_gen = || AnnData::<Zarr>::new(&file).unwrap();
-        utils::test_index(|| adata_gen());
+        utils::test_index(adata_gen);
     })
 }
 
@@ -134,11 +134,11 @@ fn test_iterator() {
     with_tmp_dir(|dir| {
         let file = dir.join("test.h5");
         let adata_gen = || AnnData::<H5>::new(&file).unwrap();
-        utils::test_iterator(|| adata_gen());
+        utils::test_iterator(adata_gen);
 
         let file = dir.join("test.zarr");
         let adata_gen = || AnnData::<Zarr>::new(&file).unwrap();
-        utils::test_iterator(|| adata_gen());
+        utils::test_iterator(adata_gen);
     })
 }
 

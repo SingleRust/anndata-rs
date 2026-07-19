@@ -32,6 +32,7 @@ fn read_indices<B: Backend, D: DatasetOp<B>, T: BackendData + SpIndex + num::Fro
     }
 }
 
+#[allow(dead_code)]
 fn read_indices_slice<
     B: Backend,
     D: DatasetOp<B>,
@@ -573,7 +574,8 @@ impl<N: BackendData, T: BackendData + SpIndex + ToPrimitive + num::Integer + num
                     let data_ds = group.open_dataset("data")?;
                     let indices_ds = group.open_dataset("indices")?;
 
-                    let run_results: Vec<anyhow::Result<(Vec<u64>, Vec<T>, Vec<N>)>> = runs
+                    type SparseRun<N, T> = (Vec<u64>, Vec<T>, Vec<N>);
+                    let run_results: Vec<anyhow::Result<SparseRun<N, T>>> = runs
                         .par_iter()
                         .map(|&(start, end)| {
                             let indptr = indptr_ds
@@ -655,7 +657,7 @@ impl<N: BackendData, T: BackendData + SpIndex> crate::data::data_traits::Indexab
     for CsMatI<N, T, u64>
 {
     fn get(&self, index: &[usize]) -> Option<crate::data::DynScalar> {
-        self.get(index[0], index[1]).map(|v| v.into_dyn())
+        self.get(index[0], index[1]).map(|v| v.as_dyn())
     }
 }
 

@@ -62,9 +62,9 @@ fn bench_sparse_full_read_zarr() {
     }
     let elapsed = start.elapsed();
     let avg = elapsed / repeats as u32;
-    let bytes_per_read = (csr.data().len() * std::mem::size_of::<f32>())
-        + (csr.indices().len() * std::mem::size_of::<i64>())
-        + (csr.indptr().as_slice().unwrap().len() * std::mem::size_of::<u64>());
+    let bytes_per_read = std::mem::size_of_val(csr.data())
+        + std::mem::size_of_val(csr.indices())
+        + std::mem::size_of_val(csr.indptr().as_slice().unwrap());
     let mib_per_read = bytes_per_read as f64 / (1024.0 * 1024.0);
     let throughput_mib_s = (mib_per_read * repeats as f64) / elapsed.as_secs_f64();
 

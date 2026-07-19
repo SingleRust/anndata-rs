@@ -357,7 +357,7 @@ where
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Helper functions
+// Helper functions
 ////////////////////////////////////////////////////////////////////////////////
 
 fn write_column<B: Backend, G: GroupOp<B>>(
@@ -377,13 +377,13 @@ fn write_column<B: Backend, G: GroupOp<B>>(
         DataType::Float32 => series
             .f32()?
             .into_iter()
-            .map(|x| x.unwrap_or(std::f32::NAN))
+            .map(|x| x.unwrap_or(f32::NAN))
             .collect::<Array1<f32>>()
             .write(location, name),
         DataType::Float64 => series
             .f64()?
             .into_iter()
-            .map(|x| x.unwrap_or(std::f64::NAN))
+            .map(|x| x.unwrap_or(f64::NAN))
             .collect::<Array1<f64>>()
             .write(location, name),
         DataType::Boolean => write_series_helper(series.bool()?, location, name),

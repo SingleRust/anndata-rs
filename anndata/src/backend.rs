@@ -165,7 +165,6 @@ pub trait AttributeOp<B: Backend + ?Sized> {
 
 pub trait DatasetOp<B: Backend + ?Sized> {
     /// Required methods
-
     fn dtype(&self) -> Result<ScalarType>;
     fn shape(&self) -> Shape;
     fn reshape(&mut self, shape: &Shape) -> Result<()>;
@@ -182,7 +181,6 @@ pub trait DatasetOp<B: Backend + ?Sized> {
         D: Dimension;
 
     /// Optional methods
-
     fn read_dyn_array_slice<S>(&self, selection: &[S]) -> Result<DynArray>
     where
         S: AsRef<SelectInfoElem>,

@@ -446,7 +446,7 @@ impl<B: Backend> InnerArrayElem<B> {
 
     pub fn take(&mut self) -> Result<ArrayData> {
         match self.element.take() {
-            Some(data) => Ok(data.try_into()?),
+            Some(data) => Ok(data),
             None => ArrayData::read(&self.container),
         }
     }

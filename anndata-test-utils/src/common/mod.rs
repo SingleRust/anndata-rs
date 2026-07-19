@@ -24,7 +24,7 @@ pub fn with_tmp_dir<T, F: FnMut(PathBuf) -> T>(mut func: F) -> T {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Strategies
+// Strategies
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Strategy for generating a random AnnData
@@ -33,16 +33,16 @@ pub fn anndata_strat<B: Backend, P: AsRef<Path> + Clone>(
     n_obs: usize,
     n_vars: usize,
 ) -> impl Strategy<Value = AnnData<B>> {
-    let x = array_strat(&vec![n_obs, n_vars]);
+    let x = array_strat(&[n_obs, n_vars]);
     let obs_names = index_strat(n_obs);
     let obsm = proptest::collection::vec(0_usize..100, 0..3).prop_flat_map(move |shapes| {
         shapes
             .into_iter()
-            .map(|d| array_strat(&vec![n_obs, d]))
+            .map(|d| array_strat(&[n_obs, d]))
             .collect::<Vec<_>>()
     });
     let obsp = (0_usize..3).prop_flat_map(move |d| {
-        std::iter::repeat_with(|| array_strat(&vec![n_obs, n_obs]))
+        std::iter::repeat_with(|| array_strat(&[n_obs, n_obs]))
             .take(d)
             .collect::<Vec<_>>()
     });
@@ -50,16 +50,16 @@ pub fn anndata_strat<B: Backend, P: AsRef<Path> + Clone>(
     let varm = proptest::collection::vec(0_usize..100, 0..3).prop_flat_map(move |shapes| {
         shapes
             .into_iter()
-            .map(|d| array_strat(&vec![n_vars, d]))
+            .map(|d| array_strat(&[n_vars, d]))
             .collect::<Vec<_>>()
     });
     let varp = (0_usize..3).prop_flat_map(move |d| {
-        std::iter::repeat_with(|| array_strat(&vec![n_vars, n_vars]))
+        std::iter::repeat_with(|| array_strat(&[n_vars, n_vars]))
             .take(d)
             .collect::<Vec<_>>()
     });
     let layers = (0_usize..3).prop_flat_map(move |d| {
-        std::iter::repeat_with(|| array_strat(&vec![n_obs, n_vars]))
+        std::iter::repeat_with(|| array_strat(&[n_obs, n_vars]))
             .take(d)
             .collect::<Vec<_>>()
     });
@@ -125,7 +125,7 @@ fn interval_strat(n: usize) -> impl Strategy<Value = Interval> {
 }
 
 pub fn array_slice_strat(
-    shape: &Vec<usize>,
+    shape: &[usize],
 ) -> impl Strategy<Value = (ArrayData, Vec<SelectInfoElem>)> {
     array_strat(shape).prop_flat_map(|x| {
         let select = x
@@ -138,7 +138,7 @@ pub fn array_slice_strat(
     })
 }
 
-pub fn array_strat(shape: &Vec<usize>) -> impl Strategy<Value = ArrayData> {
+pub fn array_strat(shape: &[usize]) -> impl Strategy<Value = ArrayData> {
     prop_oneof![
         csr_strat(shape[0], shape[1]),
         csc_strat(shape[0], shape[1]),
@@ -182,7 +182,8 @@ pub fn csc_strat(num_rows: usize, num_cols: usize) -> impl Strategy<Value = Arra
     ]
 }
 
-fn dense_array_strat(shape: &Vec<usize>) -> impl Strategy<Value = ArrayData> {
+fn dense_array_strat(shape: &[usize]) -> impl Strategy<Value = ArrayData> {
+    let shape = shape.to_vec();
     let s: Vec<_> = shape.clone().into_iter().rev().collect();
     prop_oneof![
         Just(Array::random(shape.clone(), Uniform::new(0u8, 255u8).unwrap()).into()),
@@ -341,7 +342,7 @@ pub fn select_strat(n: usize) -> BoxedStrategy<SelectInfoElem> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// AnnData operations
+// AnnData operations
 ////////////////////////////////////////////////////////////////////////////////
 
 pub fn anndata_eq<B1: Backend, B2: Backend>(
@@ -386,7 +387,7 @@ pub fn anndata_eq<B1: Backend, B2: Backend>(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Array operations
+// Array operations
 ////////////////////////////////////////////////////////////////////////////////
 
 pub fn array_select(arr: &ArrayData, select: &[SelectInfoElem]) -> ArrayData {

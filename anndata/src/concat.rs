@@ -380,7 +380,7 @@ fn concat_x<A: AnnDataOp>(
         let arr = adata.x().get().unwrap().unwrap();
         index_array(
             arr,
-            &(0..adata.n_obs()).into_iter().map(Some).collect::<Vec<_>>(),
+            &(0..adata.n_obs()).map(Some).collect::<Vec<_>>(),
             &common_vars
                 .iter()
                 .map(|x| var_names.get_index(x))

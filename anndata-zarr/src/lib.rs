@@ -163,7 +163,7 @@ impl GroupOp<Zarr> for ZarrStore {
         let result = self.list_dir(&StorePrefix::root())?;
         Ok(result
             .prefixes()
-            .into_iter()
+            .iter()
             .map(|x| {
                 x.as_str()
                     .trim_start_matches("/")
@@ -244,7 +244,7 @@ impl GroupOp<Zarr> for ZarrGroup {
             .store
             .list_dir(&current_path.as_str().try_into()?)?
             .prefixes()
-            .into_iter()
+            .iter()
             .map(|x| {
                 x.as_str()
                     .strip_prefix(current_path.as_str())
@@ -494,9 +494,12 @@ impl DatasetOp<Zarr> for ZarrDataset {
                 })
                 .collect();
             if starts.len() == selection_bounds.ndim() {
-                container
-                    .dataset
-                    .store_array_subset_ndarray(starts.as_slice(), &arr.into_owned())?;
+                let arr = arr.as_standard_layout().into_owned();
+                let subset = ArraySubset::new_with_start_shape(
+                    starts,
+                    arr.shape().iter().map(|&x| x as u64).collect(),
+                )?;
+                container.dataset.store_array_subset(&subset, arr)?;
             } else {
                 panic!("Not implemented");
             }
@@ -559,9 +562,9 @@ where
     let arr = arr.into_dyn();
     let slices = info
         .as_ref()
-        .into_iter()
+        .iter()
         .map(|x| match x.as_ref() {
-            SelectInfoElem::Slice(slice) => Some(SliceInfoElem::from(slice.clone())),
+            SelectInfoElem::Slice(slice) => Some(SliceInfoElem::from(*slice)),
             _ => None,
         })
         .collect::<Option<Vec<_>>>();
@@ -571,16 +574,13 @@ where
         let shape = arr.shape();
         let select: Vec<_> = info
             .as_ref()
-            .into_iter()
+            .iter()
             .zip(shape)
             .map(|(x, n)| SelectInfoElemBounds::new(x.as_ref(), *n))
             .collect();
         let new_shape = select.iter().map(|x| x.len()).collect::<Vec<_>>();
         ArrayD::from_shape_fn(new_shape, |idx| {
-            let new_idx: Vec<_> = (0..idx.ndim())
-                .into_iter()
-                .map(|i| select[i].index(idx[i]))
-                .collect();
+            let new_idx: Vec<_> = (0..idx.ndim()).map(|i| select[i].index(idx[i])).collect();
             arr.index(new_idx.as_slice()).clone()
         })
     }
@@ -646,15 +646,12 @@ fn new_empty_dataset_helper<T: BackendData, S: ?Sized + ReadableWritableListable
 
     let shape_ref = shape.as_ref();
     let chunk_size: Vec<u64> = match config.block_size {
-        Some(ref s) => s.as_ref().into_iter().map(|x| (*x).max(1) as u64).collect(),
+        Some(ref s) => s.as_ref().iter().map(|x| (*x).max(1) as u64).collect(),
         _ => {
             if shape_ref.len() == 1 {
-                vec![shape_ref[0].min(16384).max(1) as u64]
+                vec![shape_ref[0].clamp(1, 16384) as u64]
             } else {
-                shape_ref
-                    .iter()
-                    .map(|&x| x.min(128).max(1) as u64)
-                    .collect()
+                shape_ref.iter().map(|&x| x.clamp(1, 128) as u64).collect()
             }
         }
     };
@@ -662,8 +659,7 @@ fn new_empty_dataset_helper<T: BackendData, S: ?Sized + ReadableWritableListable
     let chunk_shape: ChunkShape = chunk_size
         .iter()
         .map(|&x| NonZeroU64::new(x).unwrap())
-        .collect::<Vec<_>>()
-        .into();
+        .collect::<Vec<_>>();
 
     let builder = zarrs::array::ArrayBuilder::new(
         shape_ref.iter().map(|x| *x as u64).collect::<Vec<_>>(),

@@ -65,10 +65,10 @@ impl<'py> PyAnnData<'py> {
         adata.set_n_obs(inner.n_obs())?;
         adata.set_n_vars(inner.n_vars())?;
 
-        if partial.is_empty() || partial.contains("X") {
-            if let Some(x) = inner.x().get::<ArrayData>()? {
-                adata.set_x(x)?;
-            }
+        if (partial.is_empty() || partial.contains("X"))
+            && let Some(x) = inner.x().get::<ArrayData>()?
+        {
+            adata.set_x(x)?;
         }
 
         if partial.is_empty() || partial.contains("obs") {
@@ -191,8 +191,7 @@ impl<'py> AnnDataOp for PyAnnData<'py> {
         let shape = data.shape();
         self.set_n_obs(shape[0])?;
         self.set_n_vars(shape[1])?;
-        let ob: ArrayData = data.into();
-        self.setattr("X", PyArrayData::from(ob))?;
+        self.setattr("X", PyArrayData::from(data))?;
         Ok(())
     }
 
@@ -490,7 +489,7 @@ where
 {
     fn len(&self) -> usize {
         let n = self.total_rows / self.chunk_size;
-        if self.total_rows % self.chunk_size == 0 {
+        if self.total_rows.is_multiple_of(self.chunk_size) {
             n
         } else {
             n + 1

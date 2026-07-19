@@ -15,7 +15,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 ///////////////////////////////////////////////////////////////////////////////
-/// Type definitions
+// Type definitions
 ///////////////////////////////////////////////////////////////////////////////
 
 pub struct H5;
@@ -51,7 +51,7 @@ impl Deref for H5Dataset {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-/// Backend implementation
+// Backend implementation
 ///////////////////////////////////////////////////////////////////////////////
 
 impl Backend for H5 {
@@ -162,7 +162,7 @@ fn exists(group: &Group, name: &str) -> Result<bool> {
 }
 
 fn create_scalar_data<D: BackendData>(group: &Group, name: &str, data: &D) -> Result<H5Dataset> {
-    match data.into_dyn() {
+    match data.as_dyn() {
         DynScalar::U8(x) => {
             let dataset = group.new_dataset::<u8>().create(name)?;
             dataset.write_scalar(&x)?;
@@ -258,20 +258,20 @@ impl DatasetOp<H5> for H5Dataset {
 
     fn read_scalar<T: BackendData>(&self) -> Result<T> {
         let val = match T::DTYPE {
-            ScalarType::Bool => self.deref().read_scalar::<bool>()?.into_dyn(),
-            ScalarType::U8 => self.deref().read_scalar::<u8>()?.into_dyn(),
-            ScalarType::U16 => self.deref().read_scalar::<u16>()?.into_dyn(),
-            ScalarType::U32 => self.deref().read_scalar::<u32>()?.into_dyn(),
-            ScalarType::U64 => self.deref().read_scalar::<u64>()?.into_dyn(),
-            ScalarType::I8 => self.deref().read_scalar::<i8>()?.into_dyn(),
-            ScalarType::I16 => self.deref().read_scalar::<i16>()?.into_dyn(),
-            ScalarType::I32 => self.deref().read_scalar::<i32>()?.into_dyn(),
-            ScalarType::I64 => self.deref().read_scalar::<i64>()?.into_dyn(),
-            ScalarType::F32 => self.deref().read_scalar::<f32>()?.into_dyn(),
-            ScalarType::F64 => self.deref().read_scalar::<f64>()?.into_dyn(),
+            ScalarType::Bool => self.deref().read_scalar::<bool>()?.as_dyn(),
+            ScalarType::U8 => self.deref().read_scalar::<u8>()?.as_dyn(),
+            ScalarType::U16 => self.deref().read_scalar::<u16>()?.as_dyn(),
+            ScalarType::U32 => self.deref().read_scalar::<u32>()?.as_dyn(),
+            ScalarType::U64 => self.deref().read_scalar::<u64>()?.as_dyn(),
+            ScalarType::I8 => self.deref().read_scalar::<i8>()?.as_dyn(),
+            ScalarType::I16 => self.deref().read_scalar::<i16>()?.as_dyn(),
+            ScalarType::I32 => self.deref().read_scalar::<i32>()?.as_dyn(),
+            ScalarType::I64 => self.deref().read_scalar::<i64>()?.as_dyn(),
+            ScalarType::F32 => self.deref().read_scalar::<f32>()?.as_dyn(),
+            ScalarType::F64 => self.deref().read_scalar::<f64>()?.as_dyn(),
             ScalarType::String => {
                 let s = self.deref().read_scalar::<VarLenUnicode>()?;
-                s.to_string().into_dyn()
+                s.to_string().as_dyn()
             }
         };
         BackendData::from_dyn(val)
@@ -454,7 +454,7 @@ fn path(loc: &Location) -> PathBuf {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Derived implementations
+// Derived implementations
 ////////////////////////////////////////////////////////////////////////////////
 
 impl GroupOp<H5> for H5File {
@@ -703,7 +703,7 @@ where
 
 fn write_scalar_attr<D: BackendData>(loc: &Location, name: &str, value: D) -> Result<()> {
     del_attr(loc, name);
-    match value.into_dyn() {
+    match value.as_dyn() {
         DynScalar::U8(x) => loc.new_attr::<u8>().create(name)?.write_scalar(&x)?,
         DynScalar::U16(x) => loc.new_attr::<u16>().create(name)?.write_scalar(&x)?,
         DynScalar::U32(x) => loc.new_attr::<u32>().create(name)?.write_scalar(&x)?,

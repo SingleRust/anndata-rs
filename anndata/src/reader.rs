@@ -286,10 +286,12 @@ where
     }
 }
 
+type MatrixMarketData<T> = ((usize, usize), Vec<u64>, Vec<u64>, Vec<T>);
+
 fn read_mtx_body<T, R>(
     reader: &mut R,
     sym_mode: SymmetryMode,
-) -> Result<((usize, usize), Vec<u64>, Vec<u64>, Vec<T>), IoError>
+) -> Result<MatrixMarketData<T>, IoError>
 where
     R: io::BufRead,
     T: Copy + std::str::FromStr,

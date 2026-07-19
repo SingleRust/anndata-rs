@@ -16,6 +16,7 @@ use sprs::{CsMatI, TriMatI};
 use super::DynSparseMatrix;
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum DynIndCsrNonCanonical {
     I16(DynCsrNonCanonical<i16>),
     I32(DynCsrNonCanonical<i32>),

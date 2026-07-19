@@ -434,8 +434,8 @@ impl<'a> SelectInfoBounds<'a> {
         self.select.len()
     }
 
-    /// Convert to a new slice that contain only the unique indices. A mapping for
-    /// getting back the original indices is also returned.
+    // Convert to a new slice that contains only the unique indices. A mapping for
+    // getting back the original indices is also returned.
     /*
     pub fn to_unique(&self) -> (Self, Self) {
         let out_shape = self.out_shape();
@@ -534,6 +534,11 @@ impl<'a> SelectInfoElemBounds<'a> {
             Self::Index(idx) => idx.len(),
             Self::Slice(slice) => slice.len(),
         }
+    }
+
+    /// Returns whether the selection element is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Retrieves the index at the specified position.
@@ -741,7 +746,7 @@ mod tests {
         fn test_indices(input: Vec<u16>) {
             let max = (*input.iter().max().unwrap_or(&0) as usize) + 1;
             let indices = input.into_iter().map(|x| x as usize).collect::<Vec<_>>();
-            let sorted_expected = indices.iter().map(|x| *x).unique().sorted().collect::<Vec<_>>();
+            let sorted_expected = indices.iter().copied().unique().sorted().collect::<Vec<_>>();
             let (sorted, mapping) = _unique_indices_sorted(indices.as_slice(), max);
             assert_eq!(sorted, sorted_expected);
             assert_eq!(indices, mapping.iter().map(|x| sorted[*x]).collect::<Vec<_>>());

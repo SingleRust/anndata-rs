@@ -29,18 +29,19 @@ pub trait ElemTrait: Send + Sync {
 
 impl<B: Backend> ElemTrait for Elem<B> {
     fn enable_cache(&self) {
-        self.lock().as_mut().map(|x| x.enable_cache());
+        if let Some(x) = self.lock().as_mut() {
+            x.enable_cache();
+        }
     }
 
     fn disable_cache(&self) {
-        self.lock().as_mut().map(|x| x.disable_cache());
+        if let Some(x) = self.lock().as_mut() {
+            x.disable_cache();
+        }
     }
 
     fn is_scalar(&self) -> bool {
-        match self.inner().dtype() {
-            DataType::Scalar(_) => true,
-            _ => false,
-        }
+        matches!(self.inner().dtype(), DataType::Scalar(_))
     }
 
     fn get<'py>(&self, slice: &Bound<'py, PyAny>) -> Result<PyData> {
@@ -52,7 +53,7 @@ impl<B: Backend> ElemTrait for Elem<B> {
     }
 
     fn show(&self) -> String {
-        format!("{}", self)
+        format!("{self}")
     }
 }
 
@@ -69,11 +70,15 @@ pub trait ArrayElemTrait: Send + Sync {
 
 impl<B: Backend + 'static> ArrayElemTrait for ArrayElem<B> {
     fn enable_cache(&self) {
-        self.lock().as_mut().map(|x| x.enable_cache());
+        if let Some(x) = self.lock().as_mut() {
+            x.enable_cache();
+        }
     }
 
     fn disable_cache(&self) {
-        self.lock().as_mut().map(|x| x.disable_cache());
+        if let Some(x) = self.lock().as_mut() {
+            x.disable_cache();
+        }
     }
 
     fn get(&self, subscript: &Bound<'_, PyAny>) -> Result<PyArrayData> {
@@ -86,7 +91,7 @@ impl<B: Backend + 'static> ArrayElemTrait for ArrayElem<B> {
     }
 
     fn show(&self) -> String {
-        format!("{}", self)
+        format!("{self}")
     }
 
     fn shape(&self) -> Vec<usize> {
@@ -134,7 +139,7 @@ impl<B: Backend + 'static> ArrayElemTrait for StackedArrayElem<B> {
     }
 
     fn show(&self) -> String {
-        format!("{}", self)
+        format!("{self}")
     }
 
     fn shape(&self) -> Vec<usize> {
@@ -198,7 +203,7 @@ impl<B: Backend> DataFrameElemTrait for DataFrameElem<B> {
     }
 
     fn show(&self) -> String {
-        format!("{}", self)
+        format!("{self}")
     }
 }
 
@@ -226,7 +231,7 @@ impl<B: Backend> DataFrameElemTrait for StackedDataFrame<B> {
     }
 
     fn show(&self) -> String {
-        format!("{}", self)
+        format!("{self}")
     }
 }
 
@@ -252,7 +257,7 @@ impl<B: Backend + 'static> AxisArrayTrait for AxisArrays<B> {
         Ok(self
             .inner()
             .get(key)
-            .context(format!("No such key: {}", key))?
+            .context(format!("No such key: {key}"))?
             .inner()
             .data()?
             .into())
@@ -262,7 +267,7 @@ impl<B: Backend + 'static> AxisArrayTrait for AxisArrays<B> {
         Ok(self
             .inner()
             .get(key)
-            .context(format!("No such key: {}", key))?
+            .context(format!("No such key: {key}"))?
             .clone()
             .into())
     }
@@ -272,7 +277,7 @@ impl<B: Backend + 'static> AxisArrayTrait for AxisArrays<B> {
     }
 
     fn show(&self) -> String {
-        format!("{}", self)
+        format!("{self}")
     }
 }
 
@@ -289,7 +294,7 @@ impl<B: Backend + 'static> AxisArrayTrait for StackedAxisArrays<B> {
         Ok(self
             .deref()
             .get(key)
-            .context(format!("No such key: {}", key))?
+            .context(format!("No such key: {key}"))?
             .data::<ArrayData>()?
             .unwrap()
             .into())
@@ -299,7 +304,7 @@ impl<B: Backend + 'static> AxisArrayTrait for StackedAxisArrays<B> {
         Ok(self
             .deref()
             .get(key)
-            .context(format!("No such key: {}", key))?
+            .context(format!("No such key: {key}"))?
             .clone()
             .into())
     }
@@ -309,7 +314,7 @@ impl<B: Backend + 'static> AxisArrayTrait for StackedAxisArrays<B> {
     }
 
     fn show(&self) -> String {
-        format!("{}", self)
+        format!("{self}")
     }
 }
 
@@ -335,7 +340,7 @@ impl<B: Backend + 'static> ElemCollectionTrait for ElemCollection<B> {
         Ok(self
             .inner()
             .get(key)
-            .context(format!("No such key: {}", key))?
+            .context(format!("No such key: {key}"))?
             .inner()
             .data()?
             .into())
@@ -345,7 +350,7 @@ impl<B: Backend + 'static> ElemCollectionTrait for ElemCollection<B> {
         Ok(self
             .inner()
             .get(key)
-            .context(format!("No such key: {}", key))?
+            .context(format!("No such key: {key}"))?
             .clone()
             .into())
     }
@@ -355,7 +360,7 @@ impl<B: Backend + 'static> ElemCollectionTrait for ElemCollection<B> {
     }
 
     fn show(&self) -> String {
-        format!("{}", self)
+        format!("{self}")
     }
 }
 

@@ -132,6 +132,20 @@ where
     }
 }
 
+fn downcast_sparse_matrix<N, T, V, I>(matrix: CsMatI<V, I, u64>) -> Result<CsMatI<N, T, u64>>
+where
+    N: BackendData,
+    T: BackendData + SpIndex,
+    V: BackendData,
+    I: BackendData + SpIndex,
+{
+    let matrix: Box<dyn std::any::Any> = Box::new(matrix);
+    matrix
+        .downcast::<CsMatI<N, T, u64>>()
+        .map(|matrix| *matrix)
+        .map_err(|_| anyhow::anyhow!("sparse matrix type mismatch"))
+}
+
 impl<N, T> TryFrom<ArrayData> for CsMatI<N, T, u64>
 where
     N: BackendData,
@@ -148,40 +162,40 @@ where
             ($data:expr, $index_ty:ty) => {{
                 if TypeId::of::<N>() == TypeId::of::<i8>() {
                     let result = CsMatI::<i8, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<i16>() {
                     let result = CsMatI::<i16, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<i32>() {
                     let result = CsMatI::<i32, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<i64>() {
                     let result = CsMatI::<i64, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<u8>() {
                     let result = CsMatI::<u8, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<u16>() {
                     let result = CsMatI::<u16, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<u32>() {
                     let result = CsMatI::<u32, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<u64>() {
                     let result = CsMatI::<u64, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<f32>() {
                     let result = CsMatI::<f32, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<f64>() {
                     let result = CsMatI::<f64, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<bool>() {
                     let result = CsMatI::<bool, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else if TypeId::of::<N>() == TypeId::of::<String>() {
                     let result = CsMatI::<String, $index_ty, u64>::try_from($data)?;
-                    Ok(unsafe { std::mem::transmute(result) })
+                    downcast_sparse_matrix(result)
                 } else {
                     bail!("Unsupported value type: {}", std::any::type_name::<N>())
                 }

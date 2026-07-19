@@ -153,9 +153,7 @@ where
     }
 }
 
-///// New DynIndSparseMatrix
-///
-///
+// Dynamic sparse matrix implementations.
 
 impl<T: SpIndex + BackendData + num::Integer + num::FromPrimitive> Element for DynSparseMatrix<T> {
     fn data_type(&self) -> DataType {
@@ -242,18 +240,18 @@ impl<T: BackendData + SpIndex + num::Integer + num::FromPrimitive> Indexable
             panic!("index must have length 2");
         }
         match self {
-            DynSparseMatrix::I8(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::I16(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::I32(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::I64(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::U8(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::U16(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::U32(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::U64(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::F32(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::F64(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::Bool(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
-            DynSparseMatrix::String(data) => data.get(index[0], index[1]).map(|v| v.into_dyn()),
+            DynSparseMatrix::I8(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::I16(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::I32(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::I64(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::U8(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::U16(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::U32(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::U64(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::F32(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::F64(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::Bool(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
+            DynSparseMatrix::String(data) => data.get(index[0], index[1]).map(|v| v.as_dyn()),
         }
     }
 }

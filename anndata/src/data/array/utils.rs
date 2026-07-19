@@ -122,6 +122,7 @@ impl<B: Backend, T: BackendData> ExtendableDataset<B, T> {
 /// select rows of csr_matrix, or columns of csc_matrix
 /// - major_indices: row_indices/col_indices of csr/csc matrix
 /// - offset: indptr
+#[allow(dead_code)]
 pub(crate) fn cs_major_index<I, Ix, Iptr, T>(
     major_indices: I,
     offsets: &[Iptr],
@@ -152,6 +153,7 @@ where
 /// slicing rows of csr_matrix, or columns of csc_matrix
 /// - start, end: slice bound of row_indices/col_indices of csr/csc matrix
 /// - offset: indptr
+#[allow(dead_code)]
 pub(crate) fn cs_major_slice<'a, Ix, Iptr, T>(
     start: usize,
     end: usize,
@@ -322,6 +324,7 @@ where
 ///
 /// All input slices are expected to be of the same length. The contents of mutable slices
 /// can be arbitrary, as they are anyway overwritten.
+#[allow(dead_code)]
 pub(crate) fn sort_lane<Ix, T: Clone>(
     minor_idx_result: &mut [Ix],
     values_result: &mut [T],
@@ -343,10 +346,11 @@ pub(crate) fn sort_lane<Ix, T: Clone>(
     apply_permutation(values_result, values, permutation);
 }
 
-/// Helper functions for sparse matrix computations
+// Helper functions for sparse matrix computations.
 
 /// permutes entries of in_slice according to permutation slice and puts them to out_slice
 #[inline]
+#[allow(dead_code)]
 pub(crate) fn apply_permutation<T: Clone>(
     out_slice: &mut [T],
     in_slice: &[T],
@@ -361,6 +365,7 @@ pub(crate) fn apply_permutation<T: Clone>(
 
 /// computes permutation by using provided indices as keys
 #[inline]
+#[allow(dead_code)]
 pub(crate) fn compute_sort_permutation<Ix>(permutation: &mut [usize], indices: &[Ix])
 where
     Ix: ToPrimitive,

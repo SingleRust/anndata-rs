@@ -93,10 +93,6 @@ impl<B: Backend> CsrMatrixBuilder<B> {
                 let indices = mat.indices();
                 let data = mat.data();
 
-                if builder.indptr.is_empty() {
-                    builder.indptr.push(0);
-                }
-
                 indptr[..indptr.len() - 1].iter().for_each(|x| {
                     builder.indptr.push(*x + builder.nnz);
                 });
